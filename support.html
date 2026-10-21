@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Help & Support — Business Catalog</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Fraunces:opsz,wght@9..144,400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+/* Business Catalog - ONE shared stylesheet for every page */
+:root{
+  --forest-900:#0F2A1D;--forest-800:#17382A;--forest-700:#1F4D36;--forest-600:#2C6B4A;
+  --sage-300:#B9CDB9;--mint-200:#CFE8D5;--mint-100:#E8F5EC;--mint-50:#F3FAF5;
+  --cream-50:#FBF8F1;--cream-100:#F5F0E4;--cream-200:#EBE3D0;--white:#fff;
+  --ink-900:#1E2321;--ink-700:#3A4140;--ink-500:#6B7370;
+  --success:#2E7D4F;--warning:#C98A1B;--danger:#B3402F;
+  --bg:var(--cream-50);--surface:#fff;--border:var(--cream-200);
+  --font-display:'Fraunces',Georgia,serif;--font-body:'DM Sans',system-ui,sans-serif;
+  --r-sm:6px;--r-md:12px;--r-lg:20px;--r-pill:999px;
+  --shadow-1:0 2px 8px rgba(15,42,29,.08);--shadow-2:0 6px 18px rgba(15,42,29,.12);
+  --tabbar:64px;--max:1280px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:var(--font-body);font-size:14px;color:var(--ink-700);background:var(--bg);min-height:100vh;display:flex;flex-direction:column;line-height:1.5}
+a{color:inherit;text-decoration:none}
+img{max-width:100%;display:block}
+button{font-family:inherit}
+h1,h2,h3,h4{font-family:var(--font-display);color:var(--ink-900);line-height:1.2}
+h1{font-size:clamp(1.5rem,3vw,1.9rem)}h2{font-size:1.35rem}h3{font-size:1.05rem}h4{font-size:1rem}
+.muted{color:var(--ink-500)}.small{font-size:12px}.hidden{display:none!important}
+.text-success{color:var(--success)}.text-warning{color:var(--warning)}.text-danger{color:var(--danger)}
+.toast{position:fixed;left:50%;bottom:96px;transform:translateX(-50%);background:var(--ink-900);color:#fff;padding:10px 18px;border-radius:var(--r-pill);z-index:200;font-size:13px;box-shadow:var(--shadow-2);max-width:90vw;text-align:center}
+
+/* ---------- Shop shell ---------- */
+.announcement{background:var(--forest-900);color:#fff;text-align:center;font-size:12px;font-weight:500;padding:8px 16px}
+.site-header{background:var(--bg);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:50}
+.header-inner{max-width:var(--max);margin:0 auto;padding:12px 16px;display:flex;align-items:center;gap:16px}
+.brand{font-family:var(--font-display);font-weight:700;font-size:1.2rem;color:var(--ink-900);white-space:nowrap}
+.desktop-nav{display:none;gap:20px;font-weight:500}
+.desktop-nav a{padding:4px 0;border-bottom:2px solid transparent}
+.desktop-nav a:hover,.desktop-nav a.active{border-color:var(--forest-700);color:var(--ink-900)}
+.header-search{display:none;flex:1;position:relative;max-width:420px}
+.header-search i{position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--ink-500)}
+.header-search input{width:100%;height:40px;border-radius:var(--r-pill);border:1px solid var(--border);background:var(--cream-100);padding:0 16px 0 38px;font:inherit;outline:none}
+.header-search input:focus,.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--forest-700);box-shadow:0 0 0 3px var(--mint-200)}
+.header-actions{margin-left:auto;display:flex;align-items:center;gap:2px}
+.icon-link{position:relative;display:inline-flex;align-items:center;gap:6px;padding:8px 10px;border-radius:var(--r-pill);background:none;border:0;cursor:pointer;color:var(--ink-900);font:inherit;font-size:13px}
+.icon-link:hover{background:var(--cream-100)}
+.icon-link i{font-size:16px}
+.icon-link .lbl{display:none}
+.badge-dot{background:var(--forest-700);color:#fff;font-size:10px;font-weight:700;min-width:18px;height:18px;border-radius:9px;display:inline-flex;align-items:center;justify-content:center;padding:0 5px}
+.mobile-search{display:none;padding:10px 16px;border-top:1px solid var(--border);gap:8px}
+.mobile-search.open{display:flex}
+.mobile-search input{flex:1;height:40px;border-radius:var(--r-pill);border:1px solid var(--border);background:var(--cream-100);padding:0 16px;font:inherit}
+.container{width:100%;max-width:var(--max);margin:0 auto;padding:24px 16px;flex:1}
+.container.narrow{max-width:900px}.container.xnarrow{max-width:520px}
+.site-footer{border-top:1px solid var(--border);padding:24px 20px;text-align:center;font-size:12px;color:var(--ink-500)}
+.site-footer a{margin:0 8px;text-decoration:underline}
+.tabbar{position:fixed;left:0;right:0;bottom:0;height:var(--tabbar);background:#fff;border-top:1px solid var(--border);display:flex;justify-content:space-around;align-items:center;z-index:60}
+.tabbar a,.tabbar button{display:flex;flex-direction:column;align-items:center;gap:2px;font-size:11px;font-weight:500;color:var(--ink-500);flex:1;padding:6px 0;background:none;border:0;cursor:pointer}
+.tabbar i{font-size:17px}.tabbar .active{color:var(--forest-700);font-weight:700}
+body.has-tabbar{padding-bottom:var(--tabbar)}
+
+/* Bottom sheet menu (mobile "Menu" / admin "More") */
+.sheet{position:fixed;inset:0;background:rgba(15,42,29,.5);z-index:95;display:none}
+.sheet.open{display:block}
+.sheet-panel{position:absolute;left:0;right:0;bottom:0;background:#fff;border-radius:20px 20px 0 0;padding:18px 16px calc(18px + env(safe-area-inset-bottom));max-height:82vh;overflow:auto}
+.sheet-panel h3{margin-bottom:6px}
+.sheet-panel a{display:flex;align-items:center;gap:12px;padding:14px 6px;border-bottom:1px solid var(--border);font-weight:500;color:var(--ink-900)}
+.sheet-panel a:last-child{border-bottom:0}
+.sheet-panel a i{width:20px;text-align:center;color:var(--forest-700)}
+.sheet-panel a.active{color:var(--forest-700);font-weight:700}
+
+/* ---------- Buttons ---------- */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:11px 22px;border-radius:var(--r-pill);border:1px solid var(--forest-700);background:var(--forest-700);color:#fff;font:600 14px var(--font-body);cursor:pointer;transition:.2s;text-align:center}
+.btn:hover{background:var(--forest-800)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn.outline{background:transparent;color:var(--forest-700)}.btn.outline:hover{background:var(--mint-100)}
+.btn.white{background:#fff;color:var(--forest-900);border-color:#fff}
+.btn.ghost-white{background:transparent;color:#fff;border-color:rgba(255,255,255,.6)}
+.btn.block{width:100%}.btn.sm{padding:7px 14px;font-size:13px}
+.btn-row{display:flex;gap:12px;flex-wrap:wrap;margin-top:16px}
+.add-btn{width:34px;height:34px;border-radius:50%;border:0;background:var(--forest-700);color:#fff;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:.2s;flex-shrink:0}
+.add-btn:hover{background:var(--forest-600)}
+.link-danger{background:none;border:0;color:var(--danger);font:600 12px var(--font-body);cursor:pointer;text-decoration:underline}
+
+/* ---------- Cards, grids ---------- */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-md);padding:20px;box-shadow:var(--shadow-1)}
+a.card:hover{border-color:var(--sage-300)}
+.stack{display:flex;flex-direction:column;gap:16px}
+.row-between{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.grid{display:grid;gap:16px}
+.grid.cols-2{grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}
+.grid.products{grid-template-columns:repeat(2,1fr)}
+.grid.metrics{grid-template-columns:repeat(2,1fr)}
+.split{display:grid;gap:24px;grid-template-columns:1fr}
+.page-head{margin-bottom:20px}.page-head p{color:var(--ink-500);margin-top:4px}
+.section-head{display:flex;justify-content:space-between;align-items:center;margin:28px 0 14px}
+.product-card{background:#fff;border:1px solid var(--border);border-radius:var(--r-lg);padding:14px;display:flex;flex-direction:column;gap:10px;box-shadow:var(--shadow-1);transition:.2s}
+.product-card:hover{transform:translateY(-3px);box-shadow:var(--shadow-2)}
+.product-img{background:var(--mint-50);border:1px solid var(--mint-100);border-radius:var(--r-md);height:150px;display:flex;align-items:center;justify-content:center;font-size:42px;color:var(--forest-700);overflow:hidden}
+.product-img img{width:100%;height:100%;object-fit:cover}
+.product-foot{display:flex;justify-content:space-between;align-items:center;margin-top:auto}
+.price{font-weight:700;font-size:1.05rem;color:var(--ink-900)}
+.hero{background:var(--forest-900);color:#fff;border-radius:var(--r-lg);padding:32px 24px;display:grid;gap:24px;overflow:hidden}
+.hero h1{color:#fff;font-size:clamp(1.7rem,4vw,2.6rem);margin:12px 0}
+.hero p{color:var(--sage-300);max-width:520px}
+.hero-tags{display:flex;gap:8px;flex-wrap:wrap}
+.hero-tags span{border:1px solid rgba(255,255,255,.3);border-radius:var(--r-pill);padding:3px 10px;font-size:11px;letter-spacing:.5px}
+.hero-visual{display:none;align-items:center;justify-content:center;gap:12px;color:var(--mint-200)}
+.hero-visual img{width:100px;height:140px;object-fit:cover;border-radius:12px;box-shadow:0 4px 12px rgba(0,0,0,.1)}
+.promo{border-radius:var(--r-lg);padding:24px;display:block}
+.promo.light{background:var(--mint-100)}.promo.dark{background:var(--forest-700);color:#fff}.promo.dark h3{color:#fff}
+.empty{text-align:center;padding:48px 16px;color:var(--ink-500)}
+
+/* ---------- Pills, tabs, badges ---------- */
+.pills{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;margin-bottom:18px;scrollbar-width:none}
+.pill{background:var(--cream-100);border:1px solid var(--border);color:var(--ink-500);padding:8px 16px;border-radius:var(--r-pill);font:600 12px var(--font-body);white-space:nowrap;cursor:pointer;transition:.2s;display:inline-block}
+.pill.active{background:var(--forest-700);border-color:var(--forest-700);color:#fff}
+.tabs{display:flex;background:var(--mint-100);padding:5px;border-radius:var(--r-pill);margin-bottom:20px;overflow-x:auto;gap:4px}
+.tab{flex:1;white-space:nowrap;background:none;border:0;padding:9px 14px;border-radius:var(--r-pill);font:500 13px var(--font-body);color:var(--ink-700);cursor:pointer;text-align:center}
+.tab.active{background:var(--forest-700);color:#fff;font-weight:700}
+.badge{display:inline-block;padding:4px 12px;border-radius:var(--r-pill);font-size:12px;font-weight:700;background:var(--mint-100);color:var(--forest-700);border:1px solid var(--sage-300)}
+.badge.warn{background:#FEF3C7;color:#92400E;border-color:#F5DFA0}
+.badge.gray{background:var(--cream-100);color:var(--ink-500);border-color:var(--border)}
+.badge.danger{background:#FBE7E3;color:var(--danger);border-color:#F0C4BC}
+
+/* ---------- Forms ---------- */
+.form-grid{display:grid;gap:14px;grid-template-columns:1fr}
+.field{display:flex;flex-direction:column;gap:6px}
+.field label{font-size:12px;font-weight:600;color:var(--ink-500)}
+.field input,.field select,.field textarea{width:100%;padding:12px 14px;background:var(--cream-100);border:1px solid var(--border);border-radius:var(--r-md);font:inherit;color:var(--ink-900);outline:none;transition:.2s}
+.field input.err,.field select.err{border-color:var(--danger)}
+.field.full{grid-column:1/-1}.full{grid-column:1/-1}
+.form-msg{font-size:13px;color:var(--danger);min-height:18px}
+.sel{padding:8px 14px;border:1px solid var(--border);border-radius:var(--r-pill);background:#fff;font:inherit;color:var(--ink-900);cursor:pointer}
+.check{display:flex;gap:8px;align-items:center;cursor:pointer}
+
+/* ---------- Tables ---------- */
+.table-wrap{background:#fff;border:1px solid var(--border);border-radius:var(--r-md);overflow-x:auto;box-shadow:var(--shadow-1)}
+table{width:100%;border-collapse:collapse;text-align:left;min-width:480px}
+th{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-500);background:var(--cream-50);padding:12px 16px;border-bottom:1px solid var(--border)}
+td{padding:14px 16px;border-bottom:1px solid var(--border)}
+tr:last-child td{border-bottom:0}
+tr.clickable,.row-click{cursor:pointer}tr.clickable:hover{background:var(--mint-50)}
+.tier-table td:first-child{font-weight:600}
+
+/* ---------- Lists / receipt / steps ---------- */
+.line{display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px dashed var(--border)}
+.line:last-child{border-bottom:0}.line.total{font-weight:700;font-size:1.05rem;color:var(--ink-900)}
+.line.save{color:var(--success)}
+.steps{display:flex;gap:10px;overflow-x:auto}
+.step{white-space:nowrap;font-size:12px;color:var(--ink-500)}.step.active{color:var(--ink-900);font-weight:700}
+.kanban{display:grid;gap:14px;grid-template-columns:1fr}
+.kcol{background:var(--mint-50);border:1px solid var(--mint-200);border-radius:var(--r-md);padding:14px;display:flex;flex-direction:column;gap:10px}
+.kcol h4{font-size:14px;padding-bottom:8px;border-bottom:1px solid var(--mint-200)}
+.kcard{display:block;background:#fff;border:1px solid var(--border);border-radius:var(--r-sm);padding:10px 12px;box-shadow:var(--shadow-1)}
+.track{display:flex;flex-direction:column;gap:14px}
+.track div{display:flex;gap:10px;align-items:center;color:var(--ink-500);font-weight:600}
+.track div.on{color:var(--forest-700)}
+.notice{background:var(--mint-100);border:1px solid var(--mint-200);border-radius:var(--r-md);padding:12px 16px;font-size:13px}
+.ok-box{background:var(--mint-100);border:1px solid var(--mint-200);border-radius:var(--r-md);padding:20px;text-align:center}
+
+/* ---------- Chat ---------- */
+.chat-card{display:flex;flex-direction:column;height:calc(100vh - 230px);min-height:440px;padding:0;overflow:hidden}
+.chat-top{display:flex;justify-content:space-between;align-items:center;padding:12px 18px;border-bottom:1px solid var(--border);font-weight:700;color:var(--ink-900)}
+.chat-log{flex:1;overflow-y:auto;padding:18px;display:flex;flex-direction:column;gap:12px}
+.chat-input{display:flex;gap:10px;padding:12px;border-top:1px solid var(--border);background:#fff;align-items:center}
+.chat-input input[type=text]{flex:1;height:44px;border-radius:var(--r-pill);border:1px solid var(--border);background:var(--cream-100);padding:0 16px;font:inherit;outline:none}
+.send{width:44px;height:44px;border-radius:50%;border:0;background:var(--forest-700);color:#fff;cursor:pointer;flex-shrink:0}
+.bubble{max-width:78%;padding:10px 14px;border-radius:16px;font-size:14px}
+.bubble.in{background:var(--cream-100);border:1px solid var(--border);align-self:flex-start;border-bottom-left-radius:4px}
+.bubble.out{background:var(--forest-700);color:#fff;align-self:flex-end;border-bottom-right-radius:4px}
+.bubble.internal{background:#FFF7DB;border:1px dashed #E5C96B;color:var(--ink-900);align-self:flex-end}
+.note{align-self:center;font-size:12px;color:var(--ink-500)}
+
+/* ---------- Auth ---------- */
+body.auth{background:var(--forest-900);align-items:center;justify-content:center;padding:16px}
+.auth-card{background:#fff;border-radius:var(--r-lg);padding:32px;width:100%;max-width:440px;box-shadow:0 12px 40px rgba(0,0,0,.25);display:flex;flex-direction:column;gap:18px}
+.auth-card.wide{max-width:720px}
+
+/* ---------- Shop page ---------- */
+.shop-layout{display:grid;gap:24px;grid-template-columns:1fr}
+.shop-sidebar{position:fixed;top:0;bottom:0;left:0;width:min(340px,88vw);background:#fff;z-index:80;padding:20px;overflow-y:auto;transform:translateX(-100%);transition:.25s;box-shadow:var(--shadow-2)}
+.shop-sidebar.open{transform:none}
+.backdrop{position:fixed;inset:0;background:rgba(15,42,29,.45);z-index:70;display:none}
+.backdrop.open{display:block}
+.sidebar-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.filter-group{border-bottom:1px solid var(--border);padding:14px 0}
+.filter-title{display:flex;justify-content:space-between;align-items:center;width:100%;background:none;border:0;padding:0;font:700 14px var(--font-body);color:var(--ink-900);cursor:pointer}
+.filter-body{margin-top:10px;display:flex;flex-direction:column;gap:8px}
+.filter-group.collapsed .filter-body{display:none}
+.filter-group.collapsed .filter-title i{transform:rotate(-90deg)}
+.filter-list{list-style:none}
+.filter-list a{display:flex;justify-content:space-between;padding:7px 10px;border-radius:var(--r-sm)}
+.filter-list a:hover,.filter-list a.active{background:var(--mint-100);color:var(--forest-700);font-weight:600}
+.price-inputs{display:flex;gap:8px;align-items:center}
+.price-inputs input{width:100%;padding:9px 10px;border:1px solid var(--border);border-radius:var(--r-sm);background:var(--cream-100);font:inherit;outline:none}
+.shop-head{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+.controls{display:flex;gap:8px;position:relative}
+.control-btn{display:inline-flex;gap:8px;align-items:center;padding:9px 16px;border:1px solid var(--border);background:#fff;border-radius:var(--r-pill);font:600 13px var(--font-body);cursor:pointer;color:var(--ink-900)}
+.sort-menu,.dropdown-menu{position:absolute;right:0;top:calc(100% + 6px);background:#fff;border:1px solid var(--border);border-radius:var(--r-md);box-shadow:var(--shadow-2);min-width:200px;display:none;z-index:30;overflow:hidden}
+.sort-menu.open,.dropdown-menu.open{display:block}
+.sort-menu button{display:block;width:100%;text-align:left;padding:10px 16px;background:none;border:0;font:inherit;cursor:pointer}
+.sort-menu button:hover,.sort-menu button.active,.dropdown-menu a:hover{background:var(--mint-100)}
+.dropdown{position:relative}
+.dropdown-menu a{display:block;padding:10px 16px}
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+.chip{display:inline-flex;align-items:center;gap:8px;background:var(--forest-700);color:#fff;border:0;padding:6px 14px;border-radius:var(--r-pill);font:600 12px var(--font-body);cursor:pointer}
+.cart-bar{position:fixed;left:12px;right:12px;bottom:calc(var(--tabbar) + 10px);background:var(--forest-900);color:#fff;border-radius:var(--r-pill);padding:12px 20px;display:flex;justify-content:space-between;align-items:center;z-index:55;box-shadow:var(--shadow-2);font-weight:600}
+
+/* ---------- Product page ---------- */
+.pd-grid{display:grid;gap:28px;grid-template-columns:1fr}
+.pd-main{background:var(--mint-50);border:1px solid var(--mint-100);border-radius:var(--r-lg);height:300px;display:flex;align-items:center;justify-content:center;font-size:96px;color:var(--forest-700);overflow:hidden}
+.pd-main img{width:100%;height:100%;object-fit:cover}
+.thumbs{display:flex;gap:10px;margin-top:12px}
+.thumb{width:72px;height:72px;border-radius:var(--r-md);background:var(--mint-50);border:2px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:24px;color:var(--forest-700);cursor:pointer}
+.thumb.active{border-color:var(--forest-700)}
+.tag{display:inline-block;background:var(--mint-100);color:var(--forest-700);border-radius:var(--r-pill);padding:3px 12px;font-size:12px;font-weight:600}
+.pd-price{font:700 1.8rem var(--font-display);color:var(--ink-900)}
+.seg{display:flex;background:var(--mint-100);padding:4px;border-radius:var(--r-pill)}
+.seg button{flex:1;border:0;background:none;padding:10px;border-radius:var(--r-pill);font:600 14px var(--font-body);cursor:pointer;color:var(--ink-700)}
+.seg button.active{background:var(--forest-700);color:#fff}
+.seg button:disabled{opacity:.4;cursor:not-allowed}
+.tiers{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.tier{border:1.5px solid var(--border);background:#fff;border-radius:var(--r-md);padding:12px;text-align:center;cursor:pointer;font-size:12px}
+.tier b{display:block;font-size:1.05rem;color:var(--ink-900);margin-top:4px}
+.tier.active{border-color:var(--forest-700);background:var(--mint-50)}
+.tier.off{opacity:.4;pointer-events:none}
+.stepper{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--border);border-radius:var(--r-pill);padding:4px;background:#fff}
+.stepper button{width:34px;height:34px;border-radius:50%;border:0;background:var(--mint-100);color:var(--forest-700);font-size:18px;cursor:pointer}
+.stepper button:disabled{opacity:.4;cursor:not-allowed}
+.stepper span{min-width:36px;text-align:center;font-weight:700}
+.acc{border:1px solid var(--border);border-radius:var(--r-md);background:#fff;overflow:hidden}
+.acc-item+.acc-item{border-top:1px solid var(--border)}
+.acc-head{width:100%;display:flex;justify-content:space-between;align-items:center;padding:14px 16px;background:none;border:0;font:600 14px var(--font-body);color:var(--ink-900);cursor:pointer;text-align:left}
+.acc-body{display:none;padding:0 16px 14px}
+.acc-item.open .acc-body{display:block}
+.acc-item.open .acc-head i{transform:rotate(180deg)}
+.buy-bar{position:sticky;bottom:var(--tabbar);background:var(--bg);border-top:1px solid var(--border);padding:12px 0;display:flex;justify-content:space-between;align-items:center;gap:12px;z-index:20}
+
+/* ---------- Cart / checkout / payment ---------- */
+.cart-item{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;background:#fff;border:1px solid var(--border);border-radius:var(--r-md);padding:16px 18px}
+.cart-item .ctl{display:flex;align-items:center;gap:12px}
+.summary{position:sticky;top:90px}
+.cstep{display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap}
+.cstep span{padding:6px 16px;border-radius:var(--r-pill);background:var(--cream-100);border:1px solid var(--border);font-size:12px;font-weight:600;color:var(--ink-500)}
+.cstep span.active{background:var(--forest-700);color:#fff;border-color:var(--forest-700)}
+.cstep span.done{background:var(--mint-100);color:var(--forest-700)}
+.opt{display:flex;justify-content:space-between;align-items:center;gap:12px;background:#fff;border:1.5px solid var(--border);border-radius:var(--r-md);padding:14px 18px;cursor:pointer;text-align:left;width:100%;font:inherit;color:inherit;transition:.2s}
+.opt:hover{border-color:var(--sage-300)}
+.opt.active{border-color:var(--forest-700);background:var(--mint-50)}
+.opt b{display:block;color:var(--ink-900)}
+
+/* ---------- Request / account / misc ---------- */
+.item-row{display:grid;gap:8px;grid-template-columns:1fr 1fr;align-items:center;background:#fff;border:1px solid var(--border);border-radius:var(--r-md);padding:12px}
+.item-row .custom{grid-column:1/-1}
+.item-row input,.item-row select{width:100%;padding:10px 12px;background:var(--cream-100);border:1px solid var(--border);border-radius:var(--r-sm);font:inherit;outline:none}
+.toggle{position:relative;width:44px;height:24px;flex-shrink:0;display:inline-block}
+.toggle input{opacity:0;width:0;height:0}
+.toggle span{position:absolute;inset:0;background:var(--sage-300);border-radius:24px;cursor:pointer;transition:.2s}
+.toggle span:before{content:"";position:absolute;height:18px;width:18px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.2s}
+.toggle input:checked+span{background:var(--forest-700)}
+.toggle input:checked+span:before{transform:translateX(20px)}
+.modal-bg{position:fixed;inset:0;background:rgba(15,42,29,.5);display:none;align-items:center;justify-content:center;padding:16px;z-index:90}
+.modal-bg.open{display:flex}
+.modal{background:#fff;border-radius:var(--r-lg);padding:24px;width:100%;max-width:440px}
+.upload-prev{height:170px;border:1px dashed var(--forest-700);border-radius:var(--r-md);background:var(--mint-50);display:flex;align-items:center;justify-content:center;overflow:hidden;font-size:40px;color:var(--forest-700)}
+.upload-prev img{width:100%;height:100%;object-fit:cover}
+.tree .child{padding-left:22px}
+
+/* ---------- Admin shell ---------- */
+body.admin-body{flex-direction:row}
+.admin-side{display:none;width:250px;flex-shrink:0;background:var(--forest-900);color:#fff;padding:28px 0;position:sticky;top:0;height:100vh;overflow-y:auto}
+.admin-side .brand{color:#fff;display:block;padding:0 24px 24px;border-bottom:1px solid rgba(255,255,255,.1)}
+.admin-side nav{display:flex;flex-direction:column;gap:2px;padding:14px 0}
+.admin-side nav a{display:flex;justify-content:space-between;padding:12px 24px;color:var(--sage-300);font-weight:500}
+.admin-side nav a:hover,.admin-side nav a.active{background:var(--forest-800);color:#fff}
+.admin-side nav a.active{border-left:4px solid var(--mint-200);padding-left:20px}
+.admin-main{flex:1;min-width:0;display:flex;flex-direction:column}
+.admin-top{display:flex;justify-content:space-between;align-items:center;padding:14px 16px;background:#fff;border-bottom:1px solid var(--border);gap:12px}
+.admin-top .t{font-weight:700;color:var(--ink-900)}
+.admin-top .u{display:flex;gap:14px;font-size:12px;color:var(--ink-500);flex-wrap:wrap;justify-content:flex-end}
+.admin-top .u a:hover{color:var(--forest-700)}
+.admin-content{padding:20px 16px 90px;max-width:1150px;width:100%;display:flex;flex-direction:column;gap:20px}
+.metric{display:block;background:#fff;border:1px solid var(--border);border-radius:var(--r-md);padding:18px}
+.metric .l{font-size:12px;color:var(--ink-500);margin-bottom:6px}.metric .v{font:700 1.5rem var(--font-display);color:var(--ink-900)}
+.trend{font-size:12px;color:var(--success);font-weight:600}
+.bars{height:170px;display:flex;align-items:flex-end;gap:10px}
+.bars div{flex:1;background:var(--forest-700);border-radius:6px 6px 0 0}
+.sub-section-links{display:flex;gap:8px;flex-wrap:wrap}
+.dash-row{display:grid;gap:16px;grid-template-columns:1fr}
+.act-list{list-style:none}
+.act-list a{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px dashed var(--border)}
+.act-list li:last-child a{border-bottom:0}
+.thread-wrap{display:grid;gap:16px;grid-template-columns:1fr}
+.thread-wrap .chatpane{display:none}
+.thread-wrap.show-chat .listpane{display:none}
+.thread-wrap.show-chat .chatpane{display:flex}
+.thread{padding:14px 16px;border-bottom:1px solid var(--border);cursor:pointer}
+.thread:hover{background:var(--cream-50)}.thread.active{background:var(--mint-100)}
+.thread .dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--forest-700);margin-left:6px}
+
+/* ---------- Responsive ---------- */
+@media(min-width:640px){
+  .grid.products{grid-template-columns:repeat(3,1fr)}
+  .form-grid{grid-template-columns:1fr 1fr}
+  .icon-link .lbl{display:inline}
+  .kanban{grid-template-columns:repeat(2,1fr)}
+  .grid.metrics{grid-template-columns:repeat(4,1fr)}
+  .item-row{grid-template-columns:1fr 150px 90px 40px}
+}
+@media(min-width:900px){
+  .desktop-nav{display:flex}.header-search{display:block}
+  .header-inner{padding:12px 32px}
+  .mobile-only{display:none!important}
+  .tabbar{display:none}body.has-tabbar{padding-bottom:0}
+  .container{padding:32px}
+  .grid.products{grid-template-columns:repeat(4,1fr)}
+  .hero{grid-template-columns:1.3fr 1fr;padding:48px}.hero-visual{display:flex}
+  .split.sidebar-right{grid-template-columns:1fr 340px;align-items:start}
+  .kanban{grid-template-columns:repeat(4,1fr)}
+  .admin-side{display:block}
+  .admin-top{padding:16px 32px}.admin-content{padding:28px 32px}
+  body.admin-body .tabbar{display:none}
+  .shop-layout{grid-template-columns:240px 1fr;align-items:start}
+  .shop-sidebar{position:sticky;top:90px;bottom:auto;width:auto;transform:none;box-shadow:none;border:1px solid var(--border);border-radius:var(--r-md);z-index:1;height:fit-content}
+  .close-filters,.backdrop{display:none!important}
+  .pd-grid{grid-template-columns:1fr 1fr;align-items:start}
+  .buy-bar{bottom:0}
+  .dash-row{grid-template-columns:1.6fr 1fr}
+  .thread-wrap{grid-template-columns:320px 1fr}
+  .thread-wrap .chatpane,.thread-wrap.show-chat .listpane{display:flex}
+  .thread-wrap .back-list{display:none}
+}
+@media(max-width:899px){.desktop-only{display:none!important}}
+@media print{.announcement,.site-header,.tabbar,.admin-side,.admin-top,.btn-row,.site-footer,.sheet,.toast{display:none!important}}
+</style>
+
+</head>
+<body data-layout="shop" data-section="support">
+<main class="container narrow" id="main">
+  <div class="page-head"><h1>How can we help?</h1></div>
+  <div class="pills" id="pills"></div>
+  <div class="acc" id="faq"></div>
+  <div class="btn-row"><a class="btn" href="chat.html">Message support</a><a class="btn outline" href="supply-request.html">Request a wholesale quote</a></div>
+</main>
+<script>
+/* Business Catalog - shared layout, navigation and global click handling.
+   Edit the link lists below to change menus on EVERY page. */
+(function () {
+  const body = document.body;
+  const layout = body.dataset.layout || 'shop';      // shop | admin | auth
+  const section = body.dataset.section || '';        // highlights the active menu item
+  const title = body.dataset.title || '';            // admin top-bar title
+
+  const SHOP_NAV = [['Shop', 'shop.html', 'shop'], ['Wholesale', 'wholesale.html', 'wholesale'], ['Supply request', 'supply-request.html', 'supply']];
+  const SHOP_TABS = [
+    ['Home', 'index.html', 'home', 'fa-solid fa-house'], ['Shop', 'shop.html', 'shop', 'fa-solid fa-store'],
+    ['Orders', 'my-orders.html', 'orders', 'fa-solid fa-box-archive'], ['Messages', 'chat.html', 'messages', 'fa-regular fa-comment-dots'],
+    ['Account', 'account.html', 'account', 'fa-regular fa-user']
+  ];
+  const SHOP_MENU = [
+    ['Home', 'index.html', 'fa-solid fa-house', 'home'], ['Shop', 'shop.html', 'fa-solid fa-store', 'shop'],
+    ['Wholesale', 'wholesale.html', 'fa-solid fa-boxes-stacked', 'wholesale'], ['Request a wholesale quote', 'supply-request.html', 'fa-solid fa-file-invoice', 'supply'],
+    ['My orders', 'my-orders.html', 'fa-solid fa-box-archive', 'orders'], ['My quotes', 'my-quotes.html', 'fa-solid fa-receipt', 'quotes'],
+    ['Saved items', 'wishlist.html', 'fa-regular fa-heart', 'saved'], ['Notifications', 'notifications.html', 'fa-regular fa-bell', 'notifications'],
+    ['Help & support', 'support.html', 'fa-regular fa-circle-question', 'support'], ['My account', 'account.html', 'fa-regular fa-user', 'account'],
+    ['Sign in', 'signin.html', 'fa-solid fa-right-to-bracket', ''], ['Staff portal', 'staff-login.html', 'fa-solid fa-lock', '']
+  ];
+  const ADMIN_NAV = [
+    ['Dashboard', 'admin-dashboard.html', 'dashboard'], ['Products', 'admin-products.html', 'products'], ['Orders', 'admin-orders.html', 'orders'],
+    ['Supply', 'admin-supply-requests.html', 'supply'], ['Customers', 'admin-customers.html', 'customers'], ['Inbox', 'admin-inbox.html', 'inbox'],
+    ['Reports', 'admin-reports.html', 'reports'], ['Settings', 'admin-delivery-zones.html', 'settings']
+  ];
+  const ADMIN_TABS = [
+    ['Dashboard', 'admin-dashboard.html', 'dashboard', 'fa-solid fa-chart-line'], ['Orders', 'admin-orders.html', 'orders', 'fa-solid fa-box-archive'],
+    ['Inbox', 'admin-inbox.html', 'inbox', 'fa-regular fa-comment-dots'], ['Products', 'admin-products.html', 'products', 'fa-solid fa-store']
+  ];
+  const ADMIN_MENU = [
+    ['Supply requests', 'admin-supply-requests.html', 'fa-solid fa-file-invoice', 'supply'], ['Customers', 'admin-customers.html', 'fa-regular fa-address-book', 'customers'],
+    ['Reports', 'admin-reports.html', 'fa-solid fa-chart-column', 'reports'], ['Delivery zones & settings', 'admin-delivery-zones.html', 'fa-solid fa-truck', 'settings'],
+    ['Categories', 'admin-categories.html', 'fa-solid fa-tags', ''], ['Staff and roles', 'admin-staff.html', 'fa-solid fa-user-shield', ''],
+    ['Activity log', 'admin-activity-log.html', 'fa-solid fa-clock-rotate-left', ''], ['View store', 'index.html', 'fa-solid fa-shop', ''],
+    ['Sign out', 'staff-login.html', 'fa-solid fa-right-from-bracket', '']
+  ];
+
+  const cls = k => (k && k === section ? 'active' : '');
+  const links = arr => arr.map(([t, h, k]) => `<a href="${h}" class="${cls(k)}">${t}</a>`).join('');
+  const tabs = arr => arr.map(([t, h, k, i]) => `<a href="${h}" class="${cls(k)}"><i class="${i}"></i><span>${t}</span></a>`).join('');
+  const sheet = (id, heading, rows) => `<div class="sheet" id="sheet-${id}"><div class="sheet-panel"><h3>${heading}</h3>${rows.map(([t, h, i, k]) => `<a href="${h}" class="${cls(k)}"><i class="${i}"></i>${t}</a>`).join('')}</div></div>`;
+
+  function shopHeader() {
+    return `
+    <div class="announcement">Free delivery in Abuja over ₦50,000</div>
+    <header class="site-header">
+      <div class="header-inner">
+        <a href="index.html" class="brand">Business Catalog</a>
+        <nav class="desktop-nav">${links(SHOP_NAV)}</nav>
+        <form class="header-search" action="shop.html" method="get">
+          <i class="fa-solid fa-magnifying-glass"></i>
+          <input type="search" name="q" placeholder="Search products, brands &amp; supplies...">
+        </form>
+        <div class="header-actions">
+          <button class="icon-link mobile-only" id="searchToggle" aria-label="Search" type="button"><i class="fa-solid fa-magnifying-glass"></i></button>
+          <a class="icon-link" href="notifications.html" aria-label="Notifications"><i class="fa-regular fa-bell"></i></a>
+          <a class="icon-link" href="chat.html"><i class="fa-regular fa-comment-dots"></i><span class="lbl">Messages</span><span class="badge-dot">2</span></a>
+          <a class="icon-link" href="cart.html"><i class="fa-solid fa-cart-shopping"></i><span class="lbl">Cart</span><span class="badge-dot" data-count="cart" style="display:none">0</span></a>
+          <a class="icon-link desktop-only" href="account.html"><i class="fa-regular fa-user"></i><span class="lbl">Account</span></a>
+          <button class="icon-link mobile-only" data-sheet="menu" aria-label="Menu" type="button"><i class="fa-solid fa-bars"></i></button>
+        </div>
+      </div>
+      <form class="mobile-search" id="mobileSearch" action="shop.html" method="get">
+        <input type="search" name="q" placeholder="Search products &amp; supplies...">
+        <button class="icon-link" type="button" id="searchClose" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
+      </form>
+    </header>`;
+  }
+
+  function shopFooter() {
+    return `
+    <footer class="site-footer desktop-only">
+      <a href="support.html">Help &amp; support</a><a href="my-quotes.html">My quotes</a><a href="wishlist.html">Saved items</a><a href="notifications.html">Notifications</a><a href="staff-login.html">Staff portal</a>
+      <p style="margin-top:8px">© Business Catalog · Abuja, Nigeria</p>
+    </footer>
+    <nav class="tabbar mobile-only">${tabs(SHOP_TABS)}</nav>
+    ${sheet('menu', 'Menu', SHOP_MENU)}`;
+  }
+
+  function adminShell(main) {
+    const wrap = document.createElement('div');
+    wrap.className = 'admin-main';
+    wrap.innerHTML = `
+      <header class="admin-top">
+        <span class="t">${title}</span>
+        <div class="u"><a href="admin-orders.html">Orders</a><a href="admin-activity-log.html">Alerts</a><a href="admin-staff.html">Staff</a><a href="index.html">View store</a><a href="staff-login.html">Sign out</a></div>
+      </header>`;
+    main.classList.add('admin-content');
+    main.parentNode.insertBefore(wrap, main);
+    wrap.appendChild(main);
+    const side = document.createElement('aside');
+    side.className = 'admin-side';
+    side.innerHTML = `<a href="admin-dashboard.html" class="brand">Business Catalog</a><nav>${links(ADMIN_NAV)}</nav>`;
+    body.insertBefore(side, wrap);
+    const tb = document.createElement('nav');
+    tb.className = 'tabbar';
+    tb.innerHTML = tabs(ADMIN_TABS) + '<button type="button" data-sheet="more"><i class="fa-solid fa-ellipsis"></i><span>More</span></button>';
+    body.appendChild(tb);
+    body.insertAdjacentHTML('beforeend', sheet('more', 'More', ADMIN_MENU));
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    const main = document.getElementById('main');
+    if (layout === 'shop' && main) {
+      body.classList.add('has-tabbar');
+      body.insertAdjacentHTML('afterbegin', shopHeader());
+      main.insertAdjacentHTML('afterend', shopFooter());
+    }
+    if (layout === 'admin' && main) { body.classList.add('admin-body'); adminShell(main); }
+  });
+
+  /* ---- global click handling (works for content added later by page scripts) ---- */
+  document.addEventListener('click', e => {
+    // clickable table rows / cards (any element with a data-href attribute)
+    const row = e.target.closest('[data-href]');
+    if (row && !e.target.closest('a,button,select,input,textarea,label')) { location.href = row.dataset.href; return; }
+
+    // bottom sheets (mobile menu / admin "More")
+    const opener = e.target.closest('[data-sheet]');
+    if (opener) { const s = document.getElementById('sheet-' + opener.dataset.sheet); if (s) s.classList.add('open'); return; }
+    if (e.target.classList && e.target.classList.contains('sheet')) { e.target.classList.remove('open'); return; }
+
+    // mobile search bar
+    if (e.target.closest('#searchToggle')) { const b = document.getElementById('mobileSearch'); b.classList.add('open'); b.querySelector('input').focus(); return; }
+    if (e.target.closest('#searchClose')) { document.getElementById('mobileSearch').classList.remove('open'); return; }
+
+    // every "+" add-to-cart button on any page
+    const add = e.target.closest('.add-btn');
+    if (add && !add.disabled) {
+      e.preventDefault();
+      const i = add.querySelector('i'); if (i) i.className = 'fa-solid fa-check';
+      if (window.BC) BC.addFromButton(add);
+      setTimeout(() => { if (i) i.className = 'fa-solid fa-plus'; }, 1200);
+      return;
+    }
+
+    // pills / tabs made of <button>: highlight the clicked one
+    const b = e.target.closest('button.pill, button.tab');
+    if (b) {
+      const group = b.closest('.pills, .tabs');
+      if (group) { group.querySelectorAll('.pill, .tab').forEach(x => x.classList.remove('active')); b.classList.add('active'); }
+    }
+  });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') document.querySelectorAll('.sheet.open').forEach(s => s.classList.remove('open')); });
+})();
+</script>
+<script>
+/* Business Catalog - shared catalogue + cart/checkout store.
+   Uses localStorage so the whole shop works BEFORE the backend exists.
+   Backend phase: replace read/write with Supabase calls (search "TODO (backend)"). */
+(function () {
+  const SEED_DEMO = true; // set to false so every visitor starts with an empty cart / no demo orders
+  const K = { cart: 'bc_cart', info: 'bc_checkout', pay: 'bc_pay', last: 'bc_last_order', orders: 'bc_orders', seq: 'bc_seq', quotes: 'bc_quotes', qseq: 'bc_qseq', wish: 'bc_wish' };
+  const naira = n => '₦' + Math.round(n).toLocaleString('en-NG');
+  const read = (k, d) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } };
+  const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} };
+
+  /* ---- catalogue (TODO backend: select * from products) ---- */
+  const U = id => 'https://images.unsplash.com/photo-' + id + '?auto=format&fit=crop&w=400&q=80';
+  const tiers = p => [
+    { label: 'Dozen', qty: 12, price: Math.round(p * .83 / 10) * 10 },
+    { label: '48 pcs · Save 25%', qty: 48, price: Math.round(p * .75 / 10) * 10 },
+    { label: 'Carton', qty: 96, price: Math.round(p * .68 / 10) * 10 }
+  ];
+  const P = (id, name, cat, price, stock, icon, bulk, img) => ({ id, name, cat, price, stock, icon, bulk: !!bulk, img: img || '', tiers: tiers(price) });
+  const PRODUCTS = [
+    P('shea-250', 'Shea Soap 250g', 'bath-body', 1200, 240, 'fa-pump-soap', 1, U('1571781926291-c477ebfd024b')),
+    P('aloe-500', 'Aloe Lotion 500ml', 'skincare', 4500, 8, 'fa-bottle-droplet', 0, U('1535585209827-a15fcdbc4c2d')),
+    P('mint-250', 'Mint Wash 250ml', 'toiletries', 2900, 60, 'fa-pump-soap', 1, U('1556228720-195a672e8a03')),
+    P('argan-100', 'Argan Oil 100ml', 'hair', 6800, 35, 'fa-prescription-bottle', 0, U('1608248597359-974b1236fb48')),
+    P('shea-150', 'Shea Butter Soap 150g', 'bath-body', 1200, 240, 'fa-pump-soap', 1, U('1571781926291-c477ebfd024b')),
+    P('coco-200', 'Coconut Hair Cream 200ml', 'hair', 3200, 50, 'fa-bottle-droplet'),
+    P('charcoal-150', 'Charcoal Face Wash 150ml', 'skincare', 2600, 22, 'fa-pump-soap'),
+    P('rose-500', 'Rose Body Wash 500ml', 'bath-body', 3800, 40, 'fa-pump-soap'),
+    P('vitc-30', 'Vitamin C Serum 30ml', 'skincare', 7500, 14, 'fa-prescription-bottle'),
+    P('tooth-120', 'Everyday Toothpaste 120g', 'toiletries', 900, 300, 'fa-tooth', 1),
+    P('roll-50', 'Roll-on Deodorant 50ml', 'toiletries', 1500, 0, 'fa-spray-can-sparkles'),
+    P('sanit-500', 'Hand Sanitiser 500ml', 'toiletries', 2200, 80, 'fa-hand-sparkles', 1)
+  ];
+  const ZONES = {
+    A: { name: 'Zone A · Inner city', short: 'Zone A', areas: ['Wuse', 'Garki', 'Maitama', 'Jabi'], fee: 1500, freeOver: 50000 },
+    B: { name: 'Zone B · Mid ring', short: 'Zone B', areas: ['Gwarinpa', 'Lokogoma', 'Kado'], fee: 2500 },
+    C: { name: 'Zone C · Outer', short: 'Zone C', areas: ['Kubwa', 'Lugbe', 'Nyanya'], fee: 4500 }
+  };
+  const byId = id => PRODUCTS.find(p => p.id === id);
+  const minQty = mode => (mode === 'wholesale' ? 12 : 1);
+  const priceFor = (p, qty, mode) => {
+    if (mode !== 'wholesale') return p.price;
+    const t = p.tiers.filter(t => qty >= t.qty).pop();
+    return t ? t.price : p.price;
+  };
+  const fee = (z, subtotal) => { const zone = ZONES[z]; if (!zone) return 0; return zone.freeOver && subtotal >= zone.freeOver ? 0 : zone.fee; };
+  const thumb = p => p.img
+    ? `<img src="${p.img}" alt="${p.name}" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='block'"><i class="fa-solid ${p.icon}" style="display:none"></i>`
+    : `<i class="fa-solid ${p.icon}"></i>`;
+
+  /* ---- UI helpers ---- */
+  function refresh() {
+    const n = cart.count();
+    document.querySelectorAll('[data-count="cart"]').forEach(el => {
+      el.textContent = n;
+      if (el.classList.contains('badge-dot')) el.style.display = n ? '' : 'none';
+    });
+  }
+  function toast(msg) {
+    const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg;
+    document.body.appendChild(t); setTimeout(() => t.remove(), 1800);
+  }
+
+  /* ---- cart (TODO backend: sync with a cart table for signed-in users) ---- */
+  const SEED = [
+    { key: 'shea-150|wholesale', id: 'shea-150', mode: 'wholesale', qty: 48, price: 900 },
+    { key: 'aloe-500|single', id: 'aloe-500', mode: 'single', qty: 2, price: 4500 },
+    { key: 'mint-250|single', id: 'mint-250', mode: 'single', qty: 1, price: 2900 }
+  ];
+  const cart = {
+    get() { let c = read(K.cart, null); if (c === null) { c = SEED_DEMO ? SEED : []; write(K.cart, c); } return c; },
+    save(c) { write(K.cart, c); refresh(); document.dispatchEvent(new Event('bc:cart')); },
+    add(id, qty, mode) {
+      const p = byId(id); if (!p || p.stock < 1) return false;
+      mode = mode || 'single'; qty = Math.max(minQty(mode), qty || 1);
+      const c = cart.get(), key = id + '|' + mode;
+      let line = c.find(l => l.key === key);
+      if (line) line.qty = Math.min(p.stock, line.qty + qty);
+      else { line = { key, id, mode, qty: Math.min(p.stock, qty) }; c.push(line); }
+      line.price = priceFor(p, line.qty, mode);
+      cart.save(c); return true;
+    },
+    setQty(key, qty) {
+      const c = cart.get(), l = c.find(x => x.key === key); if (!l) return;
+      const p = byId(l.id);
+      l.qty = Math.max(minQty(l.mode), Math.min(p.stock, qty));
+      l.price = priceFor(p, l.qty, l.mode);
+      cart.save(c);
+    },
+    remove(key) { cart.save(cart.get().filter(l => l.key !== key)); },
+    clear() { cart.save([]); },
+    count() { return cart.get().length; },
+    lines() {
+      return cart.get().filter(l => byId(l.id)).map(l => {
+        const p = byId(l.id);
+        return Object.assign({}, l, { product: p, name: p.name + (l.mode === 'wholesale' ? ' · wholesale' : ''), total: l.price * l.qty });
+      });
+    },
+    totals() {
+      let retail = 0, subtotal = 0;
+      cart.lines().forEach(l => { retail += l.product.price * l.qty; subtotal += l.total; });
+      return { retail, subtotal, savings: retail - subtotal };
+    }
+  };
+
+  /* ---- checkout info, payment, orders, quotes, saved items ---- */
+  const DEMO_ORDERS = [
+    { id: 'BC-10482', date: '2026-10-17T10:00:00', status: 'Out for delivery', customer: 'Amaka Johnson', method: 'cash', zone: 'Zone A · Inner city', area: 'Wuse 2', subtotal: 52200, fee: 1500, total: 53700,
+      items: [{ name: 'Shea Butter Soap 150g · wholesale', qty: 48, price: 900, total: 43200 }, { name: 'Aloe Lotion 500ml', qty: 2, price: 4500, total: 9000 }] },
+    { id: 'BC-10431', date: '2026-10-09T14:00:00', status: 'Delivered', customer: 'Amaka Johnson', method: 'transfer', zone: 'Zone A · Inner city', area: 'Garki', subtotal: 19500, fee: 1500, total: 21000,
+      items: [{ name: 'Aloe Lotion 500ml', qty: 1, price: 4500, total: 4500 }, { name: 'Argan Oil 100ml', qty: 1, price: 6800, total: 6800 }, { name: 'Mint Wash 250ml', qty: 2, price: 2900, total: 5800 }, { name: 'Shea Butter Soap 150g', qty: 2, price: 1200, total: 2400 }] }
+  ];
+  const DEMO_QUOTES = [
+    { id: 'SR-2031', title: 'Pure Salon', items: 3, status: 'Quote ready', total: 861600, validDays: 7 },
+    { id: 'SR-2034', title: 'Glow Spa', items: 12, status: 'In review' },
+    { id: 'SR-2019', title: 'Glow Spa', items: 6, status: 'Accepted', order: 'BC-10399' }
+  ];
+  const info = { get() { return read(K.info, {}); }, set(patch) { write(K.info, Object.assign(read(K.info, {}), patch)); } };
+  const pay = { get() { return read(K.pay, 'online'); }, set(m) { write(K.pay, m); } };
+  const order = {
+    last() { return read(K.last, null); },
+    all() { const real = read(K.orders, []); return (SEED_DEMO ? real.concat(DEMO_ORDERS) : real).sort((a, b) => new Date(b.date) - new Date(a.date)); },
+    place() {
+      // TODO (backend): insert into orders + order_items; use the order id/total the server returns.
+      const t = cart.totals(), i = info.get(), z = i.zone || 'A', seq = read(K.seq, 10483) + 1, f = fee(z, t.subtotal);
+      const o = {
+        id: 'BC-' + seq, date: new Date().toISOString(), status: 'Placed',
+        items: cart.lines().map(l => ({ name: l.name, qty: l.qty, price: l.price, total: l.total })),
+        subtotal: t.subtotal, fee: f, total: t.subtotal + f,
+        zone: ZONES[z].name, area: i.area, street: i.street, customer: i.name, phone: i.phone, method: pay.get()
+      };
+      write(K.seq, seq); write(K.last, o); write(K.orders, [o].concat(read(K.orders, [])));
+      cart.clear(); return o;
+    }
+  };
+  const quotes = {
+    all() { let q = read(K.quotes, null); if (q === null) { q = SEED_DEMO ? DEMO_QUOTES : []; write(K.quotes, q); } return q; },
+    add(data) { // TODO (backend): insert into supply_requests
+      const n = read(K.qseq, 2036) + 1; write(K.qseq, n);
+      const q = Object.assign({ id: 'SR-' + n, status: 'In review', created: new Date().toISOString() }, data);
+      write(K.quotes, [q].concat(quotes.all())); return q;
+    },
+    setStatus(id, status) { write(K.quotes, quotes.all().map(q => q.id === id ? Object.assign({}, q, { status }) : q)); }
+  };
+  const wish = {
+    get() { let w = read(K.wish, null); if (w === null) { w = SEED_DEMO ? ['shea-150', 'aloe-500', 'mint-250', 'argan-100', 'coco-200'] : []; write(K.wish, w); } return w; },
+    has(id) { return wish.get().includes(id); },
+    toggle(id) { const w = wish.get(); const i = w.indexOf(id); if (i < 0) w.push(id); else w.splice(i, 1); write(K.wish, w); return i < 0; },
+    remove(id) { write(K.wish, wish.get().filter(x => x !== id)); }
+  };
+
+  /* "+" buttons on product cards (works with or without data-id) */
+  function addFromButton(btn) {
+    const card = btn.closest('.product-card');
+    let id = btn.dataset.id || (card && card.dataset.id);
+    if (!id && card) { const h = card.querySelector('h3'); const p = h && PRODUCTS.find(x => x.name === h.textContent.trim()); id = p && p.id; }
+    const ok = id && cart.add(id, 1, 'single');
+    toast(ok ? 'Added to cart' : 'Sorry, out of stock');
+  }
+
+  window.BC = { naira, products: PRODUCTS, byId, priceFor, minQty, zones: ZONES, fee, thumb, cart, info, pay, order, quotes, wish, toast, addFromButton, refresh };
+  document.addEventListener('DOMContentLoaded', refresh);
+  window.addEventListener('storage', refresh);
+})();
+</script>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  // Edit the answers here (TODO backend/CMS: load from a faqs table)
+  const FAQ = {
+    Delivery: [['How long does delivery take?', 'Same-day or next-day within Abuja once your order is confirmed. Zone C may take a little longer.'], ['Can I pay on delivery?', 'Yes. Choose cash on delivery or transfer on delivery at checkout. Our team confirms these orders before dispatch.'], ['What are the delivery fees in Abuja?', 'Zone A ₦1,500 (free over ₦50,000), Zone B ₦2,500, Zone C ₦4,500.']],
+    Payments: [['What payment methods are accepted?', 'Card, instant bank transfer, cash on delivery and transfer on delivery.'], ['Are bank transfers confirmed instantly?', 'Online transfers are confirmed within minutes. Transfers on delivery are confirmed at handover.'], ['How do I request an invoice?', 'Message us from the chat page with your order number and we will send the invoice in chat.']],
+    Wholesale: [['How do wholesale tiers work?', 'Switch to Wholesale on a product page. Dozen, 48-pack and carton quantities each have a lower unit price.'], ['What is the minimum order quantity for wholesale?', 'The minimum is one dozen (12 units) per product.'], ['Can I request bulk custom items?', 'Yes. Use the wholesale quote request and add a custom item. We reply within 24 hours.']],
+    Returns: [['How do I request a return?', 'Open Cancel / Return from your order in My Orders. Returns are for delivered orders.'], ['What items are eligible for a refund?', 'Unopened items in original packaging, or items that arrived damaged.'], ['How long do refunds take to process?', 'Usually 3 to 5 working days after we receive the items.']],
+    Account: [['How do I reset my password?', 'Go to Account, then Security, and set a new password.'], ['Can I change my business details?', 'Yes. Update them under Account, or message us for tier changes.'], ['How do I delete my account?', 'Message support and we will take care of it.']]
+  };
+  let cat = 'Delivery';
+  const pills = document.getElementById('pills'), faq = document.getElementById('faq');
+  const draw = () => {
+    pills.innerHTML = Object.keys(FAQ).map(c => `<button type="button" class="pill ${c === cat ? 'active' : ''}" data-c="${c}">${c}</button>`).join('');
+    faq.innerHTML = FAQ[cat].map(q => `<div class="acc-item"><button type="button" class="acc-head">${q[0]} <i class="fa-solid fa-chevron-down"></i></button><div class="acc-body">${q[1]}</div></div>`).join('');
+  };
+  pills.addEventListener('click', e => { const b = e.target.closest('.pill'); if (b) { cat = b.dataset.c; draw(); } });
+  faq.addEventListener('click', e => { const h = e.target.closest('.acc-head'); if (h) h.parentElement.classList.toggle('open'); });
+  draw();
+});
+</script>
+</body>
+</html>

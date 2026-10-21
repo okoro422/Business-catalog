@@ -1,0 +1,233 @@
+-- =====================================================================
+-- Business Catalog - Supabase schema.  Run in: Supabase > SQL Editor > New query.
+-- Safe to run once on a fresh project. Creates tables, security rules (RLS),
+-- a secure place_order() function, sample data, and the image bucket.
+-- =====================================================================
+create extension if not exists pgcrypto;
+
+-- ---------- people ----------
+create type user_role as enum ('customer', 'wholesale', 'staff', 'owner');
+
+create table profiles (
+  id uuid primary key references auth.users on delete cascade,
+  full_name text, phone text, email text,
+  role user_role not null default 'customer',
+  tier text not null default 'Retail',          -- Retail | Pending | Wholesale T1 | T2 | T3
+  business_name text, business_type text,
+  created_at timestamptz not null default now()
+);
+
+create or replace function is_staff() returns boolean language sql stable security definer set search_path = public as $$
+  select exists (select 1 from profiles where id = auth.uid() and role in ('staff', 'owner'));
+$$;
+
+-- auto-create a profile whenever someone signs up
+create or replace function handle_new_user() returns trigger language plpgsql security definer set search_path = public as $$
+begin
+  insert into profiles (id, email, full_name, phone, business_name, business_type, tier)
+  values (new.id, new.email, new.raw_user_meta_data->>'full_name', new.raw_user_meta_data->>'phone',
+          new.raw_user_meta_data->>'business_name', new.raw_user_meta_data->>'business_type',
+          case when new.raw_user_meta_data->>'account_type' = 'business' then 'Pending' else 'Retail' end);
+  return new;
+end $$;
+create trigger on_auth_user_created after insert on auth.users for each row execute function handle_new_user();
+
+create table addresses (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references profiles on delete cascade,
+  label text not null, note text, is_default boolean not null default false
+);
+
+-- ---------- catalogue ----------
+create table categories (
+  slug text primary key, name text not null, parent_slug text references categories(slug) on delete cascade, description text
+);
+create table products (
+  id text primary key,                          -- e.g. 'shea-250' (used in page URLs)
+  name text not null, sku text unique, brand text default 'Natural Essentials',
+  category_slug text references categories(slug),
+  price numeric(12,2) not null check (price >= 0),
+  cost numeric(12,2), stock int not null default 0 check (stock >= 0), reorder_level int not null default 20,
+  icon text default 'fa-pump-soap', image_url text, is_bulk boolean not null default false,
+  featured boolean not null default false,
+  status text not null default 'active' check (status in ('active', 'hidden', 'draft')),
+  created_at timestamptz not null default now()
+);
+create table product_tiers (                    -- wholesale price per unit by minimum quantity
+  product_id text references products on delete cascade, label text not null, min_qty int not null, price numeric(12,2) not null,
+  primary key (product_id, min_qty)
+);
+create table delivery_zones (
+  code text primary key, name text not null, areas text[] not null,
+  fee numeric(12,2) not null, free_over numeric(12,2), active boolean not null default true
+);
+
+-- ---------- orders ----------
+create sequence order_seq start 10484;
+create sequence quote_seq start 2037;
+
+create table orders (
+  id text primary key default ('BC-' || nextval('order_seq')),
+  user_id uuid references profiles,
+  customer_name text not null, phone text not null,
+  zone_code text references delivery_zones, area text, street text, landmark text,
+  payment_method text not null check (payment_method in ('online', 'cash', 'transfer')),
+  payment_status text not null default 'pending',
+  status text not null default 'Placed' check (status in ('Placed', 'Confirmed', 'Packed', 'Out for delivery', 'Delivered', 'Cancelled')),
+  subtotal numeric(12,2) not null, delivery_fee numeric(12,2) not null, total numeric(12,2) not null,
+  rider text, internal_note text, created_at timestamptz not null default now()
+);
+create table order_items (
+  id uuid primary key default gen_random_uuid(), order_id text not null references orders on delete cascade,
+  product_id text references products, name text not null, qty int not null check (qty > 0),
+  unit_price numeric(12,2) not null, line_total numeric(12,2) not null
+);
+create table order_requests (                   -- cancel / return requests
+  id uuid primary key default gen_random_uuid(), order_id text not null references orders on delete cascade,
+  user_id uuid references profiles, type text not null check (type in ('cancel', 'return')),
+  reason text, notes text, status text not null default 'open', created_at timestamptz not null default now()
+);
+
+-- ---------- wholesale quotes ----------
+create table supply_requests (
+  id text primary key default ('SR-' || nextval('quote_seq')),
+  user_id uuid references profiles, business_name text not null, business_type text,
+  contact_person text, phone text, zone_code text, needed_by date,
+  status text not null default 'New' check (status in ('New', 'In review', 'Quoted', 'Accepted', 'Declined')),
+  discount numeric(12,2) default 0, delivery_fee numeric(12,2) default 0, total numeric(12,2), valid_until date,
+  created_at timestamptz not null default now()
+);
+create table supply_request_items (
+  id uuid primary key default gen_random_uuid(), request_id text not null references supply_requests on delete cascade,
+  product_id text references products, custom_description text, pack text not null, qty int not null, unit_price numeric(12,2)
+);
+
+-- ---------- engagement ----------
+create table wishlist (user_id uuid references profiles on delete cascade, product_id text references products on delete cascade, primary key (user_id, product_id));
+create table chat_threads (
+  id uuid primary key default gen_random_uuid(), customer_id uuid references profiles, subject text,
+  last_message text, staff_unread boolean not null default true, created_at timestamptz not null default now()
+);
+create table messages (
+  id uuid primary key default gen_random_uuid(), thread_id uuid not null references chat_threads on delete cascade,
+  sender_id uuid references profiles, kind text not null default 'customer' check (kind in ('customer', 'staff', 'internal', 'system')),
+  body text not null, created_at timestamptz not null default now()
+);
+create table notifications (
+  id uuid primary key default gen_random_uuid(), user_id uuid references profiles on delete cascade,
+  category text, title text not null, href text, is_read boolean not null default false, created_at timestamptz not null default now()
+);
+create table activity_log (id bigint generated always as identity primary key, staff_id uuid references profiles, action text not null, item text, created_at timestamptz not null default now());
+create table settings (key text primary key, value jsonb not null);
+
+-- ---------- security (Row Level Security) ----------
+do $$ declare t text; begin
+  foreach t in array array['profiles','addresses','categories','products','product_tiers','delivery_zones','orders','order_items','order_requests',
+                            'supply_requests','supply_request_items','wishlist','chat_threads','messages','notifications','activity_log','settings']
+  loop execute format('alter table %I enable row level security', t); end loop; end $$;
+
+-- public read, staff write
+create policy "public read categories" on categories for select using (true);
+create policy "public read products"   on products   for select using (status = 'active' or is_staff());
+create policy "public read tiers"      on product_tiers for select using (true);
+create policy "public read zones"      on delivery_zones for select using (true);
+create policy "staff manage categories" on categories for all using (is_staff()) with check (is_staff());
+create policy "staff manage products"   on products   for all using (is_staff()) with check (is_staff());
+create policy "staff manage tiers"      on product_tiers for all using (is_staff()) with check (is_staff());
+create policy "staff manage zones"      on delivery_zones for all using (is_staff()) with check (is_staff());
+
+-- profiles: own row, staff see all. Nobody can promote themselves (role/tier locked for non-staff).
+create policy "own profile read"   on profiles for select using (id = auth.uid() or is_staff());
+create policy "own profile update" on profiles for update using (id = auth.uid() or is_staff())
+  with check (is_staff() or (id = auth.uid() and role = (select role from profiles where id = auth.uid()) and tier = (select tier from profiles where id = auth.uid())));
+
+create policy "own addresses" on addresses for all using (user_id = auth.uid()) with check (user_id = auth.uid());
+create policy "own wishlist"  on wishlist  for all using (user_id = auth.uid()) with check (user_id = auth.uid());
+
+-- orders: customers read their own; only staff change them. Customers create orders through place_order() below.
+create policy "read own orders" on orders for select using (user_id = auth.uid() or is_staff());
+create policy "staff update orders" on orders for update using (is_staff()) with check (is_staff());
+create policy "read own order items" on order_items for select using (exists (select 1 from orders o where o.id = order_id and (o.user_id = auth.uid() or is_staff())));
+create policy "own order requests" on order_requests for all using (user_id = auth.uid() or is_staff()) with check (user_id = auth.uid() or is_staff());
+
+create policy "own quotes read" on supply_requests for select using (user_id = auth.uid() or is_staff());
+create policy "create quote"    on supply_requests for insert with check (user_id = auth.uid());
+create policy "staff update quotes" on supply_requests for update using (is_staff()) with check (is_staff());
+create policy "customer accept quote" on supply_requests for update using (user_id = auth.uid() and status = 'Quoted') with check (user_id = auth.uid() and status = 'Accepted');
+create policy "quote items read"   on supply_request_items for select using (exists (select 1 from supply_requests r where r.id = request_id and (r.user_id = auth.uid() or is_staff())));
+create policy "quote items insert" on supply_request_items for insert with check (exists (select 1 from supply_requests r where r.id = request_id and r.user_id = auth.uid()));
+create policy "staff quote items"  on supply_request_items for all using (is_staff()) with check (is_staff());
+
+create policy "own threads"   on chat_threads for all using (customer_id = auth.uid() or is_staff()) with check (customer_id = auth.uid() or is_staff());
+create policy "read messages" on messages for select using (is_staff() or (kind <> 'internal' and exists (select 1 from chat_threads t where t.id = thread_id and t.customer_id = auth.uid())));
+create policy "send messages" on messages for insert with check (is_staff() or (kind = 'customer' and exists (select 1 from chat_threads t where t.id = thread_id and t.customer_id = auth.uid())));
+create policy "own notifications" on notifications for select using (user_id = auth.uid() or is_staff());
+create policy "mark notifications read" on notifications for update using (user_id = auth.uid()) with check (user_id = auth.uid());
+create policy "staff notifications" on notifications for insert with check (is_staff());
+create policy "staff activity" on activity_log for all using (is_staff()) with check (is_staff());
+create policy "staff settings" on settings for all using (is_staff()) with check (is_staff());
+
+-- ---------- secure checkout: the SERVER works out prices, never the browser ----------
+create or replace function place_order(p_name text, p_phone text, p_zone text, p_area text, p_street text, p_landmark text, p_method text, p_items jsonb)
+returns text language plpgsql security definer set search_path = public as $$
+declare v_id text; v_sub numeric := 0; v_fee numeric; v_zone delivery_zones%rowtype; v_item jsonb; v_prod products%rowtype; v_price numeric; v_qty int; v_mode text;
+begin
+  select * into v_zone from delivery_zones where code = p_zone and active;
+  if not found then raise exception 'Unknown delivery zone'; end if;
+  v_id := 'BC-' || nextval('order_seq');
+  insert into orders (id, user_id, customer_name, phone, zone_code, area, street, landmark, payment_method, subtotal, delivery_fee, total)
+  values (v_id, auth.uid(), p_name, p_phone, p_zone, p_area, p_street, p_landmark, p_method, 0, 0, 0);
+  for v_item in select * from jsonb_array_elements(p_items) loop
+    v_qty := (v_item->>'qty')::int; v_mode := coalesce(v_item->>'mode', 'single');
+    select * into v_prod from products where id = v_item->>'product_id' and status = 'active';
+    if not found or v_qty < 1 or v_prod.stock < v_qty then raise exception 'Item unavailable: %', v_item->>'product_id'; end if;
+    v_price := v_prod.price;
+    if v_mode = 'wholesale' then
+      v_price := coalesce((select price from product_tiers where product_id = v_prod.id and min_qty <= v_qty order by min_qty desc limit 1), v_prod.price);
+    end if;
+    insert into order_items (order_id, product_id, name, qty, unit_price, line_total)
+    values (v_id, v_prod.id, v_prod.name || case when v_mode = 'wholesale' then ' · wholesale' else '' end, v_qty, v_price, v_price * v_qty);
+    v_sub := v_sub + v_price * v_qty;
+    update products set stock = stock - v_qty where id = v_prod.id;
+  end loop;
+  v_fee := case when v_zone.free_over is not null and v_sub >= v_zone.free_over then 0 else v_zone.fee end;
+  update orders set subtotal = v_sub, delivery_fee = v_fee, total = v_sub + v_fee where id = v_id;
+  return v_id;
+end $$;
+grant execute on function place_order(text, text, text, text, text, text, text, jsonb) to anon, authenticated;
+
+-- ---------- images bucket ----------
+insert into storage.buckets (id, name, public) values ('product-images', 'product-images', true) on conflict do nothing;
+create policy "public read product images" on storage.objects for select using (bucket_id = 'product-images');
+create policy "staff upload product images" on storage.objects for insert with check (bucket_id = 'product-images' and is_staff());
+create policy "staff change product images" on storage.objects for update using (bucket_id = 'product-images' and is_staff());
+create policy "staff delete product images" on storage.objects for delete using (bucket_id = 'product-images' and is_staff());
+
+-- ---------- starter data (matches the website demo) ----------
+insert into delivery_zones values
+  ('A', 'Zone A · Inner city', array['Wuse','Garki','Maitama','Jabi'], 1500, 50000, true),
+  ('B', 'Zone B · Mid ring', array['Gwarinpa','Lokogoma','Kado'], 2500, null, true),
+  ('C', 'Zone C · Outer', array['Kubwa','Lugbe','Nyanya'], 4500, null, true);
+insert into categories (slug, name, parent_slug) values
+  ('skincare','Skincare',null), ('hair','Hair',null), ('bath-body','Bath & Body',null), ('toiletries','Toiletries',null),
+  ('cleansers','Cleansers','skincare'), ('moisturisers','Moisturisers','skincare');
+insert into products (id, name, sku, category_slug, price, cost, stock, icon, is_bulk, featured) values
+  ('shea-250','Shea Soap 250g','SKU-SHEA-250','bath-body',1200,750,240,'fa-pump-soap',true,true),
+  ('aloe-500','Aloe Lotion 500ml','SKU-ALOE-500','skincare',4500,2800,8,'fa-bottle-droplet',false,true),
+  ('mint-250','Mint Wash 250ml','SKU-MINT-250','toiletries',2900,1800,60,'fa-pump-soap',true,true),
+  ('argan-100','Argan Oil 100ml','SKU-ARGAN-100','hair',6800,4200,35,'fa-prescription-bottle',false,true),
+  ('shea-150','Shea Butter Soap 150g','SKU-SHEA-150','bath-body',1200,750,240,'fa-pump-soap',true,false),
+  ('coco-200','Coconut Hair Cream 200ml','SKU-COCO-200','hair',3200,2000,50,'fa-bottle-droplet',false,false),
+  ('charcoal-150','Charcoal Face Wash 150ml','SKU-CHAR-150','skincare',2600,1600,22,'fa-pump-soap',false,false),
+  ('rose-500','Rose Body Wash 500ml','SKU-ROSE-500','bath-body',3800,2400,40,'fa-pump-soap',false,false),
+  ('vitc-30','Vitamin C Serum 30ml','SKU-VITC-30','skincare',7500,4700,14,'fa-prescription-bottle',false,false),
+  ('tooth-120','Everyday Toothpaste 120g','SKU-TOOTH-120','toiletries',900,550,300,'fa-tooth',true,false),
+  ('roll-50','Roll-on Deodorant 50ml','SKU-ROLL-50','toiletries',1500,900,0,'fa-spray-can-sparkles',false,false),
+  ('sanit-500','Hand Sanitiser 500ml','SKU-SANIT-500','toiletries',2200,1300,80,'fa-hand-sparkles',true,false);
+insert into product_tiers (product_id, label, min_qty, price)
+  select id, 'Dozen', 12, round(price * .83 / 10) * 10 from products union all
+  select id, '48 pcs', 48, round(price * .75 / 10) * 10 from products union all
+  select id, 'Carton', 96, round(price * .68 / 10) * 10 from products;
+
+-- AFTER you sign up on the site, make yourself the owner (replace the email):
+-- update profiles set role = 'owner' where email = 'you@example.com';

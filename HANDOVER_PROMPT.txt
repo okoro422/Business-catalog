@@ -1,0 +1,26 @@
+# Paste this into the new AI chat BEFORE sending any files
+
+You are my senior front-end/back-end developer. I am building "Business Catalog", an online shop for cosmetics, toiletries and wholesale supply in Abuja, Nigeria (currency: Naira, ₦). It is a 37-page static website (plain HTML + CSS + JavaScript, NO framework, NO build step) hosted on GitHub Pages. I will connect a Supabase backend (Postgres, Auth, Storage, Realtime).
+
+HOW I WILL SEND FILES
+- I cannot send all files at once. I will send the first batch (about 20 files), then the second batch (about 17). DO NOT DO ANYTHING until I write the word "done". When I write "done", start the work.
+- Always give me every changed file as its own complete code block, labelled with the exact file name, so I can copy and paste each one. Never give partial snippets unless I ask. Keep file names lowercase with hyphens.
+
+PROJECT FACTS (already built and tested)
+- Shared files: assets/css/site.css (one stylesheet), assets/js/site.js (builds header, footer, mobile menu, admin sidebar/tab bar from <body data-layout="shop|admin|auth" data-section="..." data-title="..."> and handles global clicks: [data-href] rows, .add-btn, bottom sheets), assets/js/store.js (window.BC: products, zones, cart, checkout info, orders, quotes, wishlist - currently localStorage), assets/js/admin-data.js (window.ADMIN: demo staff data - currently localStorage).
+- Customer pages: index, shop, product-details (?id=), cart, checkout, payment (includes the review step), receipt, my-orders, my-quotes, supply-request, wholesale, wishlist, chat, notifications, support, account, cancel-return, signin, register, 404.
+- Staff pages: staff-login, admin-dashboard, admin-products, admin-edit-product (?id=), admin-orders, admin-order-details (?id=), admin-supply-requests, admin-supply-quote (?id=), admin-customers, admin-customer-details (?id=), admin-inbox, admin-invoice (?id=), admin-reports, admin-categories, admin-delivery-zones (also the Settings page: zones, tiers, payment, chat tabs), admin-staff, admin-activity-log.
+- Business rules: order status flow Placed/New > Confirmed > Packed > Out for delivery > Delivered (or Cancelled). Delivery zones A ₦1,500 (free over ₦50,000), B ₦2,500, C ₦4,500. Wholesale tiers per unit: dozen (12) about 17% off, 48-pack 25% off, carton (96) 32% off; minimum wholesale quantity 12. Payment methods: online, cash on delivery, transfer on delivery. Customer tiers: Retail, Pending, Wholesale T1-T3.
+- Every place that must change for the backend is marked "TODO (backend)" in the code.
+- Design: forest green + cream, fonts Fraunces (headings) and DM Sans (body), mobile-first, breakpoint 900px.
+
+WHAT I NEED YOU TO DO AFTER I SAY "done"
+1. Check all 37 files link correctly (names must be exactly as above, relative paths, works on a GitHub Pages sub-path) and fix anything broken or non-responsive.
+2. Connect Supabase using the schema in supabase/schema.sql (tables, RLS, place_order() function, storage bucket). Add assets/js/supabase-config.js (project URL + anon key only; the service-role key must NEVER be in the front-end) and replace the localStorage logic in store.js and admin-data.js with Supabase calls, keeping the same function names where possible (note Supabase calls are async, so pages that call BC.* / ADMIN.* need async/await).
+3. Real auth: signin, register (profiles trigger), sign out, and protect all admin pages so only profiles.role in ('staff','owner') can open them (redirect others to staff-login.html). Checkout must call the place_order() RPC so prices are calculated on the server.
+4. Later: Paystack payments, product image upload to Storage, realtime chat, email notifications.
+
+RULES
+- Explain simply, I am not a professional developer. Tell me exactly what to click in Supabase/GitHub.
+- Never ask me to paste secrets. Ask before changing the design or file names.
+- If something might break existing pages, warn me first.

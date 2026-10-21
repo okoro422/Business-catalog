@@ -1,0 +1,36 @@
+# Publishing on GitHub Pages (and why links broke before)
+
+## Why your published site was not working
+1. `assets/js/site.js` was an EMPTY file. Every page builds its header, menus, footer and links through this file, so with it empty nothing linked.
+2. `assets/js/store.js` was missing (cart, checkout, orders). `admin-data.js` was empty (all staff pages).
+3. `assets/css/site.css` was the old home-page stylesheet, not the shared one.
+4. Many pages were still the OLD standalone versions, with `href="#"` links.
+5. File names had capital letters, typos and `_1` suffixes. GitHub Pages is case-sensitive: `Account.html` is not `account.html`.
+
+## Folder layout (must match exactly, all lowercase)
+```
+index.html  shop.html  product-details.html  cart.html  checkout.html  payment.html  receipt.html
+my-orders.html  my-quotes.html  supply-request.html  wholesale.html  wishlist.html  chat.html
+notifications.html  support.html  account.html  cancel-return.html  signin.html  register.html  404.html
+staff-login.html  admin-dashboard.html  admin-products.html  admin-edit-product.html  admin-orders.html
+admin-order-details.html  admin-supply-requests.html  admin-supply-quote.html  admin-customers.html
+admin-customer-details.html  admin-inbox.html  admin-invoice.html  admin-reports.html
+admin-categories.html  admin-delivery-zones.html  admin-staff.html  admin-activity-log.html
+assets/css/site.css
+assets/js/site.js  assets/js/store.js  assets/js/admin-data.js
+```
+
+## Upload steps (works from a phone browser too)
+1. In the repo, delete the old files (open a file, tap the bin icon, commit). Or use a fresh repo.
+2. Add file > Upload files. Upload the 37 pages at the repo root.
+3. Create the folders: Add file > Create new file, type `assets/css/site.css` as the name (typing the slashes makes folders), paste the code, commit. Repeat for the 3 JS files.
+   On a computer you can unzip `business-catalog.zip` and drag everything in, keeping the `assets` folder.
+4. Settings > Pages > Source: "Deploy from a branch" > branch `main`, folder `/ (root)` > Save.
+5. Wait about 1 minute, open `https://YOUR-NAME.github.io/REPO-NAME/`.
+6. After every update do a hard refresh (on phone: clear site data) because browsers cache CSS/JS.
+
+## Quick self-test after publishing
+- Open `/shop.html`: you should see a green announcement bar, header and 12 products.
+- Tap "+" on a product: the cart badge appears.
+- Open `/admin-dashboard.html`: dark green sidebar on desktop, tab bar with "More" on phone.
+- If a page is plain/unstyled: the `assets` folder is in the wrong place or the file name has a capital letter.
