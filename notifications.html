@@ -2,10 +2,12 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Notifications — Business Catalog</title>
+<title>Shop — Business Catalog</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Fraunces:opsz,wght@9..144,400;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<!-- Supabase JS Client Library -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 /* Business Catalog - ONE shared stylesheet for every page */
 :root{
@@ -339,20 +341,48 @@ body.admin-body{flex-direction:row}
 </style>
 
 </head>
-<body data-layout="shop" data-section="notifications">
-<main class="container narrow" id="main">
-  <div class="row-between page-head"><h1>Notifications</h1><button class="btn sm outline" id="readAll" type="button">Mark all as read</button></div>
-  <div class="tabs" id="tabs"><button type="button" class="tab active" data-f="all">All</button><button type="button" class="tab" data-f="orders">Orders</button><button type="button" class="tab" data-f="quotes">Quotes</button><button type="button" class="tab" data-f="messages">Messages</button></div>
-  <div class="stack" id="list" style="gap:12px"></div>
+<body data-layout="shop" data-section="shop">
+<main class="container" id="main">
+  <div class="shop-layout">
+    <div class="backdrop" id="backdrop"></div>
+    <aside class="shop-sidebar" id="sidebar" aria-label="Filters">
+      <div class="sidebar-head"><h3>Filters</h3><button class="icon-link close-filters" id="closeFilters" aria-label="Close filters" type="button"><i class="fa-solid fa-xmark"></i></button></div>
+      <div class="field"><input id="sideSearch" type="search" placeholder="Search products..."></div>
+      <div class="filter-group"><button type="button" class="filter-title">Category <i class="fa-solid fa-chevron-down"></i></button>
+        <div class="filter-body"><ul class="filter-list" id="catList"></ul></div></div>
+      <div class="filter-group"><button type="button" class="filter-title">Price range <i class="fa-solid fa-chevron-down"></i></button>
+        <div class="filter-body"><div class="price-inputs"><input id="minP" inputmode="numeric" placeholder="₦ min"><span>—</span><input id="maxP" inputmode="numeric" placeholder="₦ max"></div></div></div>
+      <div class="filter-group"><button type="button" class="filter-title">Availability <i class="fa-solid fa-chevron-down"></i></button>
+        <div class="filter-body"><label class="check"><input type="checkbox" id="stockOnly"> In stock only</label></div></div>
+      <button class="btn block mobile-only" id="applyFilters" type="button" style="margin-top:16px">Show results</button>
+      <button class="btn outline block" id="clearFilters" type="button" style="margin-top:10px">Clear all</button>
+    </aside>
+    <section>
+      <div class="shop-head">
+        <div><h1 id="title">Shop</h1><p class="muted" id="count"></p></div>
+        <div class="controls">
+          <button class="control-btn mobile-only" id="openFilters" type="button"></button>
+          <button class="control-btn" id="sortBtn" type="button"><span id="sortLabel">Sort: Featured</span> <i class="fa-solid fa-chevron-down"></i></button>
+          <div class="sort-menu" id="sortMenu">
+            <button type="button" data-sort="featured" class="active">Featured</button>
+            <button type="button" data-sort="asc">Price: Low to High</button>
+            <button type="button" data-sort="desc">Price: High to Low</button>
+            <button type="button" data-sort="new">Newest</button>
+          </div>
+        </div>
+      </div>
+      <div class="chips" id="chips"></div>
+      <div class="grid products" id="grid"></div>
+    </section>
+  </div>
 </main>
+<a class="cart-bar mobile-only hidden" id="cartBar" href="cart.html"><span id="cartBarText"></span><span>View cart <i class="fa-solid fa-arrow-right"></i></span></a>
 <script>
-/* Business Catalog - shared layout, navigation and global click handling.
-   Edit the link lists below to change menus on EVERY page. */
 (function () {
   const body = document.body;
-  const layout = body.dataset.layout || 'shop';      // shop | admin | auth
-  const section = body.dataset.section || '';        // highlights the active menu item
-  const title = body.dataset.title || '';            // admin top-bar title
+  const layout = body.dataset.layout || 'shop';      
+  const section = body.dataset.section || '';        
+  const title = body.dataset.title || '';            
 
   const SHOP_NAV = [['Shop', 'shop.html', 'shop'], ['Wholesale', 'wholesale.html', 'wholesale'], ['Supply request', 'supply-request.html', 'supply']];
   const SHOP_TABS = [
@@ -427,28 +457,6 @@ body.admin-body{flex-direction:row}
     ${sheet('menu', 'Menu', SHOP_MENU)}`;
   }
 
-  function adminShell(main) {
-    const wrap = document.createElement('div');
-    wrap.className = 'admin-main';
-    wrap.innerHTML = `
-      <header class="admin-top">
-        <span class="t">${title}</span>
-        <div class="u"><a href="admin-orders.html">Orders</a><a href="admin-activity-log.html">Alerts</a><a href="admin-staff.html">Staff</a><a href="index.html">View store</a><a href="staff-login.html">Sign out</a></div>
-      </header>`;
-    main.classList.add('admin-content');
-    main.parentNode.insertBefore(wrap, main);
-    wrap.appendChild(main);
-    const side = document.createElement('aside');
-    side.className = 'admin-side';
-    side.innerHTML = `<a href="admin-dashboard.html" class="brand">Business Catalog</a><nav>${links(ADMIN_NAV)}</nav>`;
-    body.insertBefore(side, wrap);
-    const tb = document.createElement('nav');
-    tb.className = 'tabbar';
-    tb.innerHTML = tabs(ADMIN_TABS) + '<button type="button" data-sheet="more"><i class="fa-solid fa-ellipsis"></i><span>More</span></button>';
-    body.appendChild(tb);
-    body.insertAdjacentHTML('beforeend', sheet('more', 'More', ADMIN_MENU));
-  }
-
   document.addEventListener('DOMContentLoaded', () => {
     const main = document.getElementById('main');
     if (layout === 'shop' && main) {
@@ -456,25 +464,19 @@ body.admin-body{flex-direction:row}
       body.insertAdjacentHTML('afterbegin', shopHeader());
       main.insertAdjacentHTML('afterend', shopFooter());
     }
-    if (layout === 'admin' && main) { body.classList.add('admin-body'); adminShell(main); }
   });
 
-  /* ---- global click handling (works for content added later by page scripts) ---- */
   document.addEventListener('click', e => {
-    // clickable table rows / cards (any element with a data-href attribute)
     const row = e.target.closest('[data-href]');
     if (row && !e.target.closest('a,button,select,input,textarea,label')) { location.href = row.dataset.href; return; }
 
-    // bottom sheets (mobile menu / admin "More")
     const opener = e.target.closest('[data-sheet]');
     if (opener) { const s = document.getElementById('sheet-' + opener.dataset.sheet); if (s) s.classList.add('open'); return; }
     if (e.target.classList && e.target.classList.contains('sheet')) { e.target.classList.remove('open'); return; }
 
-    // mobile search bar
     if (e.target.closest('#searchToggle')) { const b = document.getElementById('mobileSearch'); b.classList.add('open'); b.querySelector('input').focus(); return; }
     if (e.target.closest('#searchClose')) { document.getElementById('mobileSearch').classList.remove('open'); return; }
 
-    // every "+" add-to-cart button on any page
     const add = e.target.closest('.add-btn');
     if (add && !add.disabled) {
       e.preventDefault();
@@ -484,7 +486,6 @@ body.admin-body{flex-direction:row}
       return;
     }
 
-    // pills / tabs made of <button>: highlight the clicked one
     const b = e.target.closest('button.pill, button.tab');
     if (b) {
       const group = b.closest('.pills, .tabs');
@@ -495,56 +496,46 @@ body.admin-body{flex-direction:row}
 })();
 </script>
 <script>
-/* Business Catalog - shared catalogue + cart/checkout store.
-   Uses localStorage so the whole shop works BEFORE the backend exists.
-   Backend phase: replace read/write with Supabase calls (search "TODO (backend)"). */
+/* Supabase Store Implementation for Shop */
 (function () {
-  const SEED_DEMO = true; // set to false so every visitor starts with an empty cart / no demo orders
+  const SUPABASE_URL = 'https://teqoogvtshbhohxddvrd.supabase.co';
+  const SUPABASE_ANON_KEY = 'sb_publishable_49rpTuNWymmQfzJP-R4U6w_fftl9qOF';
+  
+  const supabaseClient = window.supabase 
+    ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) 
+    : null;
+
   const K = { cart: 'bc_cart', info: 'bc_checkout', pay: 'bc_pay', last: 'bc_last_order', orders: 'bc_orders', seq: 'bc_seq', quotes: 'bc_quotes', qseq: 'bc_qseq', wish: 'bc_wish' };
   const naira = n => '₦' + Math.round(n).toLocaleString('en-NG');
   const read = (k, d) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } };
   const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} };
 
-  /* ---- catalogue (TODO backend: select * from products) ---- */
-  const U = id => 'https://images.unsplash.com/photo-' + id + '?auto=format&fit=crop&w=400&q=80';
+  let PRODUCTS = [];
+
   const tiers = p => [
     { label: 'Dozen', qty: 12, price: Math.round(p * .83 / 10) * 10 },
     { label: '48 pcs · Save 25%', qty: 48, price: Math.round(p * .75 / 10) * 10 },
     { label: 'Carton', qty: 96, price: Math.round(p * .68 / 10) * 10 }
   ];
-  const P = (id, name, cat, price, stock, icon, bulk, img) => ({ id, name, cat, price, stock, icon, bulk: !!bulk, img: img || '', tiers: tiers(price) });
-  const PRODUCTS = [
-    P('shea-250', 'Shea Soap 250g', 'bath-body', 1200, 240, 'fa-pump-soap', 1, U('1571781926291-c477ebfd024b')),
-    P('aloe-500', 'Aloe Lotion 500ml', 'skincare', 4500, 8, 'fa-bottle-droplet', 0, U('1535585209827-a15fcdbc4c2d')),
-    P('mint-250', 'Mint Wash 250ml', 'toiletries', 2900, 60, 'fa-pump-soap', 1, U('1556228720-195a672e8a03')),
-    P('argan-100', 'Argan Oil 100ml', 'hair', 6800, 35, 'fa-prescription-bottle', 0, U('1608248597359-974b1236fb48')),
-    P('shea-150', 'Shea Butter Soap 150g', 'bath-body', 1200, 240, 'fa-pump-soap', 1, U('1571781926291-c477ebfd024b')),
-    P('coco-200', 'Coconut Hair Cream 200ml', 'hair', 3200, 50, 'fa-bottle-droplet'),
-    P('charcoal-150', 'Charcoal Face Wash 150ml', 'skincare', 2600, 22, 'fa-pump-soap'),
-    P('rose-500', 'Rose Body Wash 500ml', 'bath-body', 3800, 40, 'fa-pump-soap'),
-    P('vitc-30', 'Vitamin C Serum 30ml', 'skincare', 7500, 14, 'fa-prescription-bottle'),
-    P('tooth-120', 'Everyday Toothpaste 120g', 'toiletries', 900, 300, 'fa-tooth', 1),
-    P('roll-50', 'Roll-on Deodorant 50ml', 'toiletries', 1500, 0, 'fa-spray-can-sparkles'),
-    P('sanit-500', 'Hand Sanitiser 500ml', 'toiletries', 2200, 80, 'fa-hand-sparkles', 1)
-  ];
+
   const ZONES = {
     A: { name: 'Zone A · Inner city', short: 'Zone A', areas: ['Wuse', 'Garki', 'Maitama', 'Jabi'], fee: 1500, freeOver: 50000 },
     B: { name: 'Zone B · Mid ring', short: 'Zone B', areas: ['Gwarinpa', 'Lokogoma', 'Kado'], fee: 2500 },
     C: { name: 'Zone C · Outer', short: 'Zone C', areas: ['Kubwa', 'Lugbe', 'Nyanya'], fee: 4500 }
   };
+
   const byId = id => PRODUCTS.find(p => p.id === id);
   const minQty = mode => (mode === 'wholesale' ? 12 : 1);
   const priceFor = (p, qty, mode) => {
-    if (mode !== 'wholesale') return p.price;
+    if (mode !== 'wholesale' || !p.tiers) return p.price;
     const t = p.tiers.filter(t => qty >= t.qty).pop();
     return t ? t.price : p.price;
   };
   const fee = (z, subtotal) => { const zone = ZONES[z]; if (!zone) return 0; return zone.freeOver && subtotal >= zone.freeOver ? 0 : zone.fee; };
   const thumb = p => p.img
-    ? `<img src="${p.img}" alt="${p.name}" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='block'"><i class="fa-solid ${p.icon}" style="display:none"></i>`
-    : `<i class="fa-solid ${p.icon}"></i>`;
+    ? `<img src="${p.img}" alt="${p.name}" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='block'"><i class="fa-solid ${p.icon || 'fa-pump-soap'}" style="display:none"></i>`
+    : `<i class="fa-solid ${p.icon || 'fa-pump-soap'}"></i>`;
 
-  /* ---- UI helpers ---- */
   function refresh() {
     const n = cart.count();
     document.querySelectorAll('[data-count="cart"]').forEach(el => {
@@ -557,14 +548,8 @@ body.admin-body{flex-direction:row}
     document.body.appendChild(t); setTimeout(() => t.remove(), 1800);
   }
 
-  /* ---- cart (TODO backend: sync with a cart table for signed-in users) ---- */
-  const SEED = [
-    { key: 'shea-150|wholesale', id: 'shea-150', mode: 'wholesale', qty: 48, price: 900 },
-    { key: 'aloe-500|single', id: 'aloe-500', mode: 'single', qty: 2, price: 4500 },
-    { key: 'mint-250|single', id: 'mint-250', mode: 'single', qty: 1, price: 2900 }
-  ];
   const cart = {
-    get() { let c = read(K.cart, null); if (c === null) { c = SEED_DEMO ? SEED : []; write(K.cart, c); } return c; },
+    get() { return read(K.cart, []); },
     save(c) { write(K.cart, c); refresh(); document.dispatchEvent(new Event('bc:cart')); },
     add(id, qty, mode) {
       const p = byId(id); if (!p || p.stock < 1) return false;
@@ -599,25 +584,12 @@ body.admin-body{flex-direction:row}
     }
   };
 
-  /* ---- checkout info, payment, orders, quotes, saved items ---- */
-  const DEMO_ORDERS = [
-    { id: 'BC-10482', date: '2026-10-17T10:00:00', status: 'Out for delivery', customer: 'Amaka Johnson', method: 'cash', zone: 'Zone A · Inner city', area: 'Wuse 2', subtotal: 52200, fee: 1500, total: 53700,
-      items: [{ name: 'Shea Butter Soap 150g · wholesale', qty: 48, price: 900, total: 43200 }, { name: 'Aloe Lotion 500ml', qty: 2, price: 4500, total: 9000 }] },
-    { id: 'BC-10431', date: '2026-10-09T14:00:00', status: 'Delivered', customer: 'Amaka Johnson', method: 'transfer', zone: 'Zone A · Inner city', area: 'Garki', subtotal: 19500, fee: 1500, total: 21000,
-      items: [{ name: 'Aloe Lotion 500ml', qty: 1, price: 4500, total: 4500 }, { name: 'Argan Oil 100ml', qty: 1, price: 6800, total: 6800 }, { name: 'Mint Wash 250ml', qty: 2, price: 2900, total: 5800 }, { name: 'Shea Butter Soap 150g', qty: 2, price: 1200, total: 2400 }] }
-  ];
-  const DEMO_QUOTES = [
-    { id: 'SR-2031', title: 'Pure Salon', items: 3, status: 'Quote ready', total: 861600, validDays: 7 },
-    { id: 'SR-2034', title: 'Glow Spa', items: 12, status: 'In review' },
-    { id: 'SR-2019', title: 'Glow Spa', items: 6, status: 'Accepted', order: 'BC-10399' }
-  ];
   const info = { get() { return read(K.info, {}); }, set(patch) { write(K.info, Object.assign(read(K.info, {}), patch)); } };
   const pay = { get() { return read(K.pay, 'online'); }, set(m) { write(K.pay, m); } };
   const order = {
     last() { return read(K.last, null); },
-    all() { const real = read(K.orders, []); return (SEED_DEMO ? real.concat(DEMO_ORDERS) : real).sort((a, b) => new Date(b.date) - new Date(a.date)); },
+    all() { return read(K.orders, []).sort((a, b) => new Date(b.date) - new Date(a.date)); },
     place() {
-      // TODO (backend): insert into orders + order_items; use the order id/total the server returns.
       const t = cart.totals(), i = info.get(), z = i.zone || 'A', seq = read(K.seq, 10483) + 1, f = fee(z, t.subtotal);
       const o = {
         id: 'BC-' + seq, date: new Date().toISOString(), status: 'Placed',
@@ -630,8 +602,8 @@ body.admin-body{flex-direction:row}
     }
   };
   const quotes = {
-    all() { let q = read(K.quotes, null); if (q === null) { q = SEED_DEMO ? DEMO_QUOTES : []; write(K.quotes, q); } return q; },
-    add(data) { // TODO (backend): insert into supply_requests
+    all() { return read(K.quotes, []); },
+    add(data) {
       const n = read(K.qseq, 2036) + 1; write(K.qseq, n);
       const q = Object.assign({ id: 'SR-' + n, status: 'In review', created: new Date().toISOString() }, data);
       write(K.quotes, [q].concat(quotes.all())); return q;
@@ -639,13 +611,12 @@ body.admin-body{flex-direction:row}
     setStatus(id, status) { write(K.quotes, quotes.all().map(q => q.id === id ? Object.assign({}, q, { status }) : q)); }
   };
   const wish = {
-    get() { let w = read(K.wish, null); if (w === null) { w = SEED_DEMO ? ['shea-150', 'aloe-500', 'mint-250', 'argan-100', 'coco-200'] : []; write(K.wish, w); } return w; },
+    get() { return read(K.wish, []); },
     has(id) { return wish.get().includes(id); },
     toggle(id) { const w = wish.get(); const i = w.indexOf(id); if (i < 0) w.push(id); else w.splice(i, 1); write(K.wish, w); return i < 0; },
     remove(id) { write(K.wish, wish.get().filter(x => x !== id)); }
   };
 
-  /* "+" buttons on product cards (works with or without data-id) */
   function addFromButton(btn) {
     const card = btn.closest('.product-card');
     let id = btn.dataset.id || (card && card.dataset.id);
@@ -654,33 +625,97 @@ body.admin-body{flex-direction:row}
     toast(ok ? 'Added to cart' : 'Sorry, out of stock');
   }
 
-  window.BC = { naira, products: PRODUCTS, byId, priceFor, minQty, zones: ZONES, fee, thumb, cart, info, pay, order, quotes, wish, toast, addFromButton, refresh };
-  document.addEventListener('DOMContentLoaded', refresh);
+  async function initShopCatalog() {
+    if (supabaseClient) {
+      const { data, error } = await supabaseClient.from('products').select('*');
+      if (!error && data) {
+        PRODUCTS = data.map(p => Object.assign({}, p, { tiers: tiers(p.price) }));
+      }
+    }
+    window.BC = { naira, products: PRODUCTS.filter(p => p.is_shop !== false), byId, priceFor, minQty, zones: ZONES, fee, thumb, cart, info, pay, order, quotes, wish, toast, addFromButton, refresh };
+    refresh();
+    document.dispatchEvent(new Event('bc:ready'));
+  }
+
+  document.addEventListener('DOMContentLoaded', initShopCatalog);
   window.addEventListener('storage', refresh);
 })();
 </script>
 <script>
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('bc:ready', () => {
   const $ = id => document.getElementById(id);
-  let read; try { read = JSON.parse(localStorage.getItem('bc_notif_read')) || []; } catch (e) { read = []; }
-  // TODO (backend): select from notifications where user_id = auth.uid()
-  const items = [
-    { id: 'n1', c: 'orders', t: 'Order #BC-10482 is out for delivery', w: '2 minutes ago', href: 'my-orders.html' },
-    { id: 'n2', c: 'quotes', t: 'Quote SR-2031 is ready', w: '1 hour ago', href: 'my-quotes.html' },
-    { id: 'n3', c: 'messages', t: 'Welcome to Business Catalog', w: '3 days ago', href: 'chat.html', read: 1 }
-  ];
-  const last = BC.order.last(); if (last) items.unshift({ id: 'o' + last.id, c: 'orders', t: `Order #${last.id} placed`, w: 'Just now', href: 'receipt.html' });
-  let f = 'all';
-  const save = () => { try { localStorage.setItem('bc_notif_read', JSON.stringify(read)); } catch (e) {} };
+  const CATS = [['all','All products'],['skincare','Skincare'],['hair','Hair'],['bath-body','Bath &amp; Body'],['toiletries','Toiletries'],['bulk','Bulk packs']];
+  const SORTS = { featured:'Featured', asc:'Price: Low to High', desc:'Price: High to Low', new:'Newest' };
+  const qs = new URLSearchParams(location.search);
+  const S = { cat: CATS.some(c => c[0] === qs.get('cat')) ? qs.get('cat') : 'all', q: qs.get('q') || '', min: '', max: '', stock: false, sort: 'featured' };
+  const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const label = c => CATS.find(x => x[0] === c)[1];
+  const inCat = (p, c) => c === 'all' || (c === 'bulk' ? p.bulk : p.cat === c);
+  const pass = p => inCat(p, S.cat) && (!S.q || p.name.toLowerCase().includes(S.q.toLowerCase())) &&
+    (!S.min || p.price >= +S.min) && (!S.max || p.price <= +S.max) && (!S.stock || p.stock > 0);
+  const meta = p => p.stock < 1 ? '<p class="small text-danger">Out of stock</p>'
+    : p.stock <= 10 ? `<p class="small text-warning">Low stock: ${p.stock} left</p>`
+    : `<p class="small muted">From ${BC.naira(p.tiers[2].price)} / carton</p>`;
+  const card = p => `<article class="product-card" data-id="${p.id}">
+    <a href="product-details.html?id=${p.id}"><div class="product-img">${BC.thumb(p)}</div></a>
+    <div><h3><a href="product-details.html?id=${p.id}">${p.name}</a></h3>${meta(p)}</div>
+    <div class="product-foot"><span class="price">${BC.naira(p.price)}</span>
+    <button class="add-btn" data-id="${p.id}" type="button" aria-label="Add ${p.name} to cart" ${p.stock < 1 ? 'disabled style="opacity:.4;cursor:not-allowed"' : ''}><i class="fa-solid fa-plus"></i></button></div></article>`;
+
   function render() {
-    const l = items.filter(n => f === 'all' || n.c === f);
-    $('list').innerHTML = l.length ? l.map(n => { const r = n.read || read.includes(n.id);
-      return `<a class="card row-between" href="${n.href}" data-id="${n.id}"><div><strong>${n.t}</strong><div class="small muted">${n.w}</div></div><span class="badge ${r ? 'gray' : ''}">${r ? 'Read' : 'New'}</span></a>`; }).join('')
-      : '<div class="empty">Nothing here yet.</div>';
+    const r = BC.products.filter(pass);
+    if (S.sort === 'asc') r.sort((a, b) => a.price - b.price);
+    if (S.sort === 'desc') r.sort((a, b) => b.price - a.price);
+    if (S.sort === 'new') r.reverse();
+    $('title').innerHTML = S.q ? 'Results for “' + esc(S.q) + '”' : label(S.cat);
+    $('count').textContent = r.length + (r.length === 1 ? ' product' : ' products');
+    $('grid').innerHTML = r.length ? r.map(card).join('') : '<div class="empty" style="grid-column:1/-1"><h3>No products found</h3><p>Try removing a filter or searching for something else.</p></div>';
+    $('catList').innerHTML = CATS.map(c => `<li><a href="#" data-cat="${c[0]}" class="${S.cat === c[0] ? 'active' : ''}">${c[1]} <span class="muted">(${BC.products.filter(p => inCat(p, c[0])).length})</span></a></li>`).join('');
+    const chips = [];
+    if (S.cat !== 'all') chips.push(['cat', label(S.cat)]);
+    if (S.q) chips.push(['q', '“' + esc(S.q) + '”']);
+    if (S.min || S.max) chips.push(['price', '₦' + (S.min || 0) + ' – ' + (S.max ? '₦' + S.max : 'any')]);
+    if (S.stock) chips.push(['stock', 'In stock only']);
+    $('chips').innerHTML = chips.map(c => `<button class="chip" type="button" data-clear="${c[0]}">${c[1]} <i class="fa-solid fa-xmark"></i></button>`).join('');
+    $('openFilters').innerHTML = '<i class="fa-solid fa-sliders"></i> Filters' + (chips.length ? ' (' + chips.length + ')' : '');
+    $('sortLabel').textContent = 'Sort: ' + SORTS[S.sort];
+    document.querySelectorAll('#sortMenu button').forEach(b => b.classList.toggle('active', b.dataset.sort === S.sort));
   }
-  $('tabs').addEventListener('click', e => { const b = e.target.closest('.tab'); if (b) { f = b.dataset.f; render(); } });
-  $('list').addEventListener('click', e => { const a = e.target.closest('[data-id]'); if (a && !read.includes(a.dataset.id)) { read.push(a.dataset.id); save(); } });
-  $('readAll').addEventListener('click', () => { read = items.map(n => n.id); save(); render(); });
+  $('sideSearch').value = S.q;
+  $('sideSearch').addEventListener('input', e => { S.q = e.target.value.trim(); render(); });
+  $('minP').addEventListener('input', e => { S.min = e.target.value.replace(/\D/g, ''); render(); });
+  $('maxP').addEventListener('input', e => { S.max = e.target.value.replace(/\D/g, ''); render(); });
+  $('stockOnly').addEventListener('change', e => { S.stock = e.target.checked; render(); });
+  $('catList').addEventListener('click', e => { const a = e.target.closest('[data-cat]'); if (!a) return; e.preventDefault(); S.cat = a.dataset.cat; render(); });
+  document.querySelectorAll('.filter-title').forEach(t => t.addEventListener('click', () => t.parentElement.classList.toggle('collapsed')));
+  $('chips').addEventListener('click', e => {
+    const c = e.target.closest('[data-clear]'); if (!c) return;
+    const k = c.dataset.clear;
+    if (k === 'cat') S.cat = 'all';
+    if (k === 'q') { S.q = ''; $('sideSearch').value = ''; }
+    if (k === 'price') { S.min = S.max = ''; $('minP').value = $('maxP').value = ''; }
+    if (k === 'stock') { S.stock = false; $('stockOnly').checked = false; }
+    render();
+  });
+  $('clearFilters').addEventListener('click', () => {
+    Object.assign(S, { cat: 'all', q: '', min: '', max: '', stock: false });
+    $('sideSearch').value = $('minP').value = $('maxP').value = ''; $('stockOnly').checked = false; render();
+  });
+  $('sortBtn').addEventListener('click', e => { e.stopPropagation(); $('sortMenu').classList.toggle('open'); });
+  document.addEventListener('click', () => $('sortMenu').classList.remove('open'));
+  $('sortMenu').addEventListener('click', e => { const b = e.target.closest('[data-sort]'); if (b) { S.sort = b.dataset.sort; render(); } });
+  const drawer = open => { $('sidebar').classList.toggle('open', open); $('backdrop').classList.toggle('open', open); };
+  $('openFilters').addEventListener('click', () => drawer(true));
+  $('closeFilters').addEventListener('click', () => drawer(false));
+  $('applyFilters').addEventListener('click', () => drawer(false));
+  $('backdrop').addEventListener('click', () => drawer(false));
+  const updateBar = () => {
+    const n = BC.cart.count();
+    $('cartBar').classList.toggle('hidden', !n);
+    $('cartBarText').textContent = n + (n === 1 ? ' item' : ' items') + ' · ' + BC.naira(BC.cart.totals().subtotal);
+  };
+  document.addEventListener('bc:cart', updateBar); updateBar();
+  window.addEventListener('load', () => document.querySelectorAll('.header-search input,.mobile-search input').forEach(i => i.value = S.q));
   render();
 });
 </script>
