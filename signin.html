@@ -7,114 +7,77 @@
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Fraunces:opsz,wght@9..144,400;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
-<!-- Supabase & Auth Scripts -->
-<script src="supabase-client.js"></script>
-<script src="auth.js"></script>
+<!-- Load Configuration first -->
+<script src="./config.js"></script>
+<!-- Load your Backend / Supabase logic next -->
+<script src="./backend.js"></script>
 
 <style>
-/* Business Catalog - ONE shared stylesheet for every page */
 :root{
   --forest-900:#0F2A1D;--forest-800:#17382A;--forest-700:#1F4D36;--forest-600:#2C6B4A;
   --sage-300:#B9CDB9;--mint-200:#CFE8D5;--mint-100:#E8F5EC;--mint-50:#F3FAF5;
   --cream-50:#FBF8F1;--cream-100:#F5F0E4;--cream-200:#EBE3D0;--white:#fff;
   --ink-900:#1E2321;--ink-700:#3A4140;--ink-500:#6B7370;
-  --success:#2E7D4F;--warning:#C98A1B;--danger:#B3402F;
+  --success:#2E7D4F;--danger:#B3402F;
   --bg:var(--cream-50);--surface:#fff;--border:var(--cream-200);
   --font-display:'Fraunces',Georgia,serif;--font-body:'DM Sans',system-ui,sans-serif;
-  --r-sm:6px;--r-md:12px;--r-lg:20px;--r-pill:999px;
-  --shadow-1:0 2px 8px rgba(15,42,29,.08);--shadow-2:0 6px 18px rgba(15,42,29,.12);
-  --tabbar:64px;--max:1280px;
+  --r-md:12px;--r-lg:20px;--r-pill:999px;
 }
 *{box-sizing:border-box;margin:0;padding:0}
-html{scroll-behavior:smooth}
 body{font-family:var(--font-body);font-size:14px;color:var(--ink-700);background:var(--bg);min-height:100vh;display:flex;flex-direction:column;line-height:1.5}
 a{color:inherit;text-decoration:none}
-img{max-width:100%;display:block}
-button{font-family:inherit}
-h1,h2,h3,h4{font-family:var(--font-display);color:var(--ink-900);line-height:1.2}
-h1{font-size:clamp(1.5rem,3vw,1.9rem)}h2{font-size:1.35rem}h3{font-size:1.05rem}h4{font-size:1rem}
-.muted{color:var(--ink-500)}.small{font-size:12px}.hidden{display:none!important}
-.text-success{color:var(--success)}.text-warning{color:var(--warning)}.text-danger{color:var(--danger)}
-.toast{position:fixed;left:50%;bottom:96px;transform:translateX(-50%);background:var(--ink-900);color:#fff;padding:10px 18px;border-radius:var(--r-pill);z-index:200;font-size:13px;box-shadow:var(--shadow-2);max-width:90vw;text-align:center}
+h1{font-family:var(--font-display);color:var(--ink-900);line-height:1.2;font-size:clamp(1.5rem,3vw,1.9rem)}
+.muted{color:var(--ink-500)}.small{font-size:12px}
+.form-msg{font-size:13px;color:var(--danger);min-height:18px}
 
-/* ---------- Shop shell ---------- */
-.announcement{background:var(--forest-900);color:#fff;text-align:center;font-size:12px;font-weight:500;padding:8px 16px}
-.site-header{background:var(--bg);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:50}
-.header-inner{max-width:var(--max);margin:0 auto;padding:12px 16px;display:flex;align-items:center;gap:16px}
-.brand{font-family:var(--font-display);font-weight:700;font-size:1.2rem;color:var(--ink-900);white-space:nowrap}
-.desktop-nav{display:none;gap:20px;font-weight:500}
-.desktop-nav a{padding:4px 0;border-bottom:2px solid transparent}
-.desktop-nav a:hover,.desktop-nav a.active{border-color:var(--forest-700);color:var(--ink-900)}
-.header-search{display:none;flex:1;position:relative;max-width:420px}
-.header-search i{position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--ink-500)}
-.header-search input{width:100%;height:40px;border-radius:var(--r-pill);border:1px solid var(--border);background:var(--cream-100);padding:0 16px 0 38px;font:inherit;outline:none}
-.header-search input:focus,.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--forest-700);box-shadow:0 0 0 3px var(--mint-200)}
-.header-actions{margin-left:auto;display:flex;align-items:center;gap:2px}
-.icon-link{position:relative;display:inline-flex;align-items:center;gap:6px;padding:8px 10px;border-radius:var(--r-pill);background:none;border:0;cursor:pointer;color:var(--ink-900);font:inherit;font-size:13px}
-.icon-link:hover{background:var(--cream-100)}
-.icon-link i{font-size:16px}
-.icon-link .lbl{display:none}
-.badge-dot{background:var(--forest-700);color:#fff;font-size:10px;font-weight:700;min-width:18px;height:18px;border-radius:9px;display:inline-flex;align-items:center;justify-content:center;padding:0 5px}
-.mobile-search{display:none;padding:10px 16px;border-top:1px solid var(--border);gap:8px}
-.mobile-search.open{display:flex}
-.mobile-search input{flex:1;height:40px;border-radius:var(--r-pill);border:1px solid var(--border);background:var(--cream-100);padding:0 16px;font:inherit}
-.container{width:100%;max-width:var(--max);margin:0 auto;padding:24px 16px;flex:1}
-.container.narrow{max-width:900px}.container.xnarrow{max-width:520px}
-.site-footer{border-top:1px solid var(--border);padding:24px 20px;text-align:center;font-size:12px;color:var(--ink-500)}
-.site-footer a{margin:0 8px;text-decoration:underline}
-.tabbar{position:fixed;left:0;right:0;bottom:0;height:var(--tabbar);background:#fff;border-top:1px solid var(--border);display:flex;justify-content:space-around;align-items:center;z-index:60}
-.tabbar a,.tabbar button{display:flex;flex-direction:column;align-items:center;gap:2px;font-size:11px;font-weight:500;color:var(--ink-500);flex:1;padding:6px 0;background:none;border:0;cursor:pointer}
-.tabbar i{font-size:17px}.tabbar .active{color:var(--forest-700);font-weight:700}
-body.has-tabbar{padding-bottom:var(--tabbar)}
+/* Loading Spinner */
+.spinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  border-top-color: #fff;
+  animation: spin 0.7s linear infinite;
+  vertical-align: middle;
+  margin-right: 6px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
 
-/* Bottom sheet menu (mobile "Menu" / admin "More") */
-.sheet{position:fixed;inset:0;background:rgba(15,42,29,.5);z-index:95;display:none}
-.sheet.open{display:block}
-.sheet-panel{position:absolute;left:0;right:0;bottom:0;background:#fff;border-radius:20px 20px 0 0;padding:18px 16px calc(18px + env(safe-area-inset-bottom));max-height:82vh;overflow:auto}
-.sheet-panel h3{margin-bottom:6px}
-.sheet-panel a{display:flex;align-items:center;gap:12px;padding:14px 6px;border-bottom:1px solid var(--border);font-weight:500;color:var(--ink-900)}
-.sheet-panel a:last-child{border-bottom:0}
-.sheet-panel a i{width:20px;text-align:center;color:var(--forest-700)}
-.sheet-panel a.active{color:var(--forest-700);font-weight:700}
-
-/* ---------- Buttons ---------- */
+/* Buttons & Inputs */
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:11px 22px;border-radius:var(--r-pill);border:1px solid var(--forest-700);background:var(--forest-700);color:#fff;font:600 14px var(--font-body);cursor:pointer;transition:.2s;text-align:center}
 .btn:hover{background:var(--forest-800)}
 .btn:disabled{opacity:.45;cursor:not-allowed}
-.btn.outline{background:transparent;color:var(--forest-700)}.btn.outline:hover{background:var(--mint-100)}
-.btn.block{width:100%}.btn.sm{padding:7px 14px;font-size:13px}
+.btn.outline{background:transparent;color:var(--forest-700)}
+.btn.block{width:100%}
 
-/* ---------- Tabs ---------- */
-.tabs{display:flex;background:var(--mint-100);padding:5px;border-radius:var(--r-pill);margin-bottom:20px;overflow-x:auto;gap:4px}
+.tabs{display:flex;background:var(--mint-100);padding:5px;border-radius:var(--r-pill);margin-bottom:20px;gap:4px}
 .tab{flex:1;white-space:nowrap;background:none;border:0;padding:9px 14px;border-radius:var(--r-pill);font:500 13px var(--font-body);color:var(--ink-700);cursor:pointer;text-align:center}
 .tab.active{background:var(--forest-700);color:#fff;font-weight:700}
 
-/* ---------- Forms ---------- */
-.form-grid{display:grid;gap:14px;grid-template-columns:1fr}
 .field{display:flex;flex-direction:column;gap:6px}
 .field label{font-size:12px;font-weight:600;color:var(--ink-500)}
 .field input{width:100%;padding:12px 14px;background:var(--cream-100);border:1px solid var(--border);border-radius:var(--r-md);font:inherit;color:var(--ink-900);outline:none;transition:.2s}
 .field input:focus{border-color:var(--forest-700);box-shadow:0 0 0 3px var(--mint-200)}
-.form-msg{font-size:13px;color:var(--danger);min-height:18px}
 
-/* ---------- Auth ---------- */
 body.auth{background:var(--forest-900);align-items:center;justify-content:center;padding:16px}
 .auth-card{background:#fff;border-radius:var(--r-lg);padding:32px;width:100%;max-width:440px;box-shadow:0 12px 40px rgba(0,0,0,.25);display:flex;flex-direction:column;gap:18px}
 </style>
-
 </head>
 <body class="auth" data-layout="auth">
 <main class="auth-card" id="main">
-  <a href="index.html" class="brand">Business Catalog</a>
+  <a href="index.html" class="brand" style="font-family:var(--font-display);font-weight:700;font-size:1.2rem;color:var(--ink-900)">Business Catalog</a>
   <h1>Welcome back</h1>
   <div class="tabs" style="margin:0"><a class="tab active" href="signin.html">Sign in</a><a class="tab" href="register.html">Create account</a></div>
-  <form class="stack" id="signinForm" style="gap:14px">
+  
+  <form class="stack" id="signinForm" style="display:flex;flex-direction:column;gap:14px">
     <div class="field"><label for="id">Email address</label><input id="id" type="email" autocomplete="username" required></div>
     <div class="field"><label for="pw">Password</label><input id="pw" type="password" autocomplete="current-password" required></div>
     <p class="form-msg" id="msg" role="alert"></p>
-    <button class="btn block" type="submit">Sign in</button>
+    <button class="btn block" type="submit" id="submitBtn">Sign in</button>
     <a class="btn outline block" href="shop.html">Continue as guest</a>
   </form>
+  
   <p class="small muted" style="text-align:center">Staff? <a href="staff-login.html" style="text-decoration:underline">Use the staff portal</a></p>
 </main>
 
@@ -125,25 +88,33 @@ document.getElementById('signinForm').addEventListener('submit', async (e) => {
   const emailInput = document.getElementById('id').value.trim();
   const passwordInput = document.getElementById('pw').value.trim();
   const msgEl = document.getElementById('msg');
+  const btn = document.getElementById('submitBtn');
   
-  msgEl.textContent = 'Signing in...';
-  
-  if (!window.db) {
-    msgEl.textContent = 'Database client initializing. Please try again.';
+  msgEl.textContent = '';
+
+  if (!window.BCLive || typeof window.BCLive.signIn !== 'function') {
+    msgEl.textContent = 'Database client is still initializing. Please wait a second.';
     return;
   }
 
-  // Use Supabase Auth to sign in customer
-  const { data, error } = await window.db.auth.signInWithPassword({
-    email: emailInput,
-    password: passwordInput,
-  });
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Signing in...';
 
-  if (error) {
-    msgEl.textContent = error.message;
-  } else {
+  try {
+    await window.BCLive.signIn(emailInput, passwordInput);
+    
+    msgEl.style.color = 'var(--success)';
     msgEl.textContent = 'Success! Redirecting...';
-    window.location.href = 'account.html';
+    
+    setTimeout(() => {
+      window.location.href = 'account.html';
+    }, 600);
+
+  } catch (err) {
+    msgEl.style.color = 'var(--danger)';
+    msgEl.textContent = err.message || 'Invalid login credentials.';
+    btn.disabled = false;
+    btn.textContent = 'Sign in';
   }
 });
 </script>
