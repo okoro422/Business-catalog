@@ -7,16 +7,15 @@
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Fraunces:opsz,wght@9..144,400;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
-<!-- Supabase & Auth Scripts -->
-<script src="supabase-client.js"></script>
-<script src="auth.js"></script>
+<!-- 1. Load Supabase CDN JS Library FIRST -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-<!-- Load Configuration first -->
+<!-- 2. Load Configuration SECOND so window.BC_CONFIG exists -->
 <script src="./config.js"></script>
 
-<!-- Load your Backend / Supabase logic next -->
-<script src="./backend.js"></script>
-
+<!-- 3. Load your Backend / Supabase logic NEXT -->
+<script src="supabase-client.js"></script>
+<script src="auth.js"></script>
 <style>
 /* Business Catalog - ONE shared stylesheet for every page */
 :root{
@@ -61,16 +60,15 @@ h1{font-size:clamp(1.5rem,3vw,1.9rem)}h2{font-size:1.35rem}h3{font-size:1.05rem}
 body.auth{background:var(--forest-900);align-items:center;justify-content:center;padding:16px}
 .auth-card{background:#fff;border-radius:var(--r-lg);padding:32px;width:100%;max-width:440px;box-shadow:0 12px 40px rgba(0,0,0,.25);display:flex;flex-direction:column;gap:18px}
 </style>
-
 </head>
 <body class="auth" data-layout="auth">
 <main class="auth-card" id="main">
   <h1>Staff Portal</h1>
-  <form class="stack" id="staffForm" style="gap:14px">
+  <form class="stack" id="staffForm" style="display:flex;flex-direction:column;gap:14px">
     <div class="field"><label for="email">Staff email</label><input id="email" type="email" autocomplete="username" required></div>
     <div class="field"><label for="password">Password</label><input id="password" type="password" autocomplete="current-password" required></div>
     <p class="form-msg" id="msg" role="alert"></p>
-    <button class="btn block" type="submit">Sign in</button>
+    <button class="btn block" type="submit" id="submitBtn">Sign in</button>
   </form>
   <a href="index.html" class="small muted" style="text-align:center">← Back to store</a>
 </main>
@@ -82,25 +80,60 @@ document.getElementById('staffForm').addEventListener('submit', async (e) => {
   const emailInput = document.getElementById('email').value.trim();
   const passwordInput = document.getElementById('password').value.trim();
   const msgEl = document.getElementById('msg');
+  const btn = document.getElementById('submitBtn');
   
-  msgEl.textContent = 'Signing in...';
-  
-  if (!window.db) {
-    msgEl.textContent = 'Database client initializing. Please try again.';
+  msgEl.style.color = 'var(--danger)';
+  msgEl.textContent = '';
+
+  btn.disabled = true;
+  btn.textContent = 'Signing in...';
+
+  // Obtain Supabase database client instance
+  const sb = (window.BCLive && window.BCLive.sb) || (window.supabase && typeof window.supabase.createClient === 'function' && window.BC_CONFIG ? window.supabase.createClient(window.BC_CONFIG.SUPABASE_URL, window.BC_CONFIG.SUPABASE_ANON_KEY) : null);
+
+  if (!sb) {
+    msgEl.textContent = 'Database client initializing. Please wait a moment and try again.';
+    btn.disabled = false;
+    btn.textContent = 'Sign in';
     return;
   }
 
-  // Authenticate user with Supabase
-  const { data, error } = await window.db.auth.signInWithPassword({
-    email: emailInput,
-    password: passwordInput,
-  });
+  try {
+    // 1. Authenticate credentials
+    const { data, error } = await sb.auth.signInWithPassword({
+      email: emailInput,
+      password: passwordInput,
+    });
 
-  if (error) {
-    msgEl.textContent = error.message;
-  } else {
-    msgEl.textContent = 'Success! Redirecting to admin...';
-    window.location.href = 'admin-dashboard.html';
+    if (error) throw error;
+
+    // 2. Check profile role in database
+    const { data: profile, error: profError } = await sb
+      .from('profiles')
+      .select('account_type, role')
+      .eq('id', data.user.id)
+      .maybeSingle();
+
+    const role = (profile && (profile.role || profile.account_type)) || 'retail';
+
+    if (role !== 'staff' && role !== 'admin') {
+      // Reject non-staff accounts and sign out
+      await sb.auth.signOut();
+      throw new Error('Access denied. This account does not have staff permissions.');
+    }
+
+    msgEl.style.color = 'var(--success)';
+    msgEl.textContent = 'Access granted! Redirecting to dashboard...';
+
+    setTimeout(() => {
+      window.location.href = 'admin-dashboard.html';
+    }, 600);
+
+  } catch (err) {
+    msgEl.style.color = 'var(--danger)';
+    msgEl.textContent = err.message || 'Login failed.';
+    btn.disabled = false;
+    btn.textContent = 'Sign in';
   }
 });
 </script>
