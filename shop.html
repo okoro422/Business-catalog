@@ -9,10 +9,12 @@
 <!-- Supabase JS Client Library -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <!-- Load Configuration first -->
-<script src="./config.js"></script>
+<!-- 2. Load Configuration FIRST so window.BC_CONFIG exists -->
+  <script src="./config.js"></script>
 
-<!-- Load your Backend / Supabase logic next -->
-<script src="./backend.js"></script>
+  <!-- 3. Load your Backend / Supabase logic next -->
+  <script src="supabase-client.js"></script>
+  <script src="auth.js"></script>
 
 <style>
 /* Business Catalog - ONE shared stylesheet for every page */
