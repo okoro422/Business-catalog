@@ -6,11 +6,17 @@
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Fraunces:opsz,wght@9..144,400;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-<!-- Load Configuration first -->
+
+<!-- 1. Load Supabase CDN JS Library FIRST -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<!-- 2. Load Configuration SECOND so window.BC_CONFIG exists -->
 <script src="./config.js"></script>
 
-<!-- Load your Backend / Supabase logic next -->
-<script src="./backend.js"></script>
+<!-- 3. Load your Backend / Supabase logic next -->
+<script src="supabase-client.js"></script>
+<script src="auth.js"></script>
+
 <style>
 /* Business Catalog - ONE shared stylesheet for every page */
 :root{
@@ -144,8 +150,8 @@ body.has-tabbar{padding-bottom:var(--tabbar)}
 
   <section id="pProfile" class="panel">
     <form class="form-grid" id="profForm">
-      <div class="field"><label for="pn">Full Name</label><input id="pn" required></div>
-      <div class="field"><label for="pp">Phone Number</label><input id="pp" type="tel" required></div>
+      <div class="field"><label for="pn">Full Name</label><input id="pn" placeholder="Loading name..." required></div>
+      <div class="field"><label for="pp">Phone Number</label><input id="pp" type="tel" placeholder="Loading phone..."></div>
       <div class="field full"><label for="pe">Email (Read-only)</label><input id="pe" type="email" disabled style="background:#e2e8f0;cursor:not-allowed;"></div>
       <div class="full"><button class="btn" type="submit">Save changes</button></div>
     </form>
@@ -259,8 +265,9 @@ body.has-tabbar{padding-bottom:var(--tabbar)}
 document.addEventListener('DOMContentLoaded', async () => {
   const $ = id => document.getElementById(id);
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const notify = msg => (window.BC && typeof window.BC.toast === 'function') ? window.BC.toast(msg) : alert(msg);
 
-  // Global Sign Out Handler attached immediately so it works even if session check takes a moment
+  // Sign out
   const signOutHandler = async () => {
     try {
       if (window.BCLive && typeof window.BCLive.signOut === 'function') {
@@ -275,19 +282,18 @@ document.addEventListener('DOMContentLoaded', async () => {
   };
 
   const signOutBtn = $('signOutBtn');
-  if (signOutBtn) {
-    signOutBtn.addEventListener('click', signOutHandler);
-  }
+  if (signOutBtn) signOutBtn.addEventListener('click', signOutHandler);
 
-  // Ensure live backend is present and user is authenticated
-  if (!window.BCLive || !window.BCLive.sb) {
+  // Get Supabase DB instance
+  let sb = (window.BCLive && window.BCLive.sb) || (window.supabase && typeof window.supabase.createClient === 'function' && window.BC_CONFIG ? window.supabase.createClient(window.BC_CONFIG.SUPABASE_URL, window.BC_CONFIG.SUPABASE_ANON_KEY) : null);
+
+  if (!sb) {
+    console.error('Supabase DB client not initialized');
     return;
   }
 
-  const sb = window.BCLive.sb;
-
   try {
-    // 1. Get authenticated user session
+    // 1. Authenticated session check
     const { data: { session }, error: sessErr } = await sb.auth.getSession();
     if (sessErr || !session) {
       window.location.href = 'signin.html?next=account.html';
@@ -296,45 +302,52 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const user = session.user;
 
-    // 2. Fetch real user profile from Supabase profiles table
-    const { data: profile, error: profErr } = await sb
+    // 2. Fetch profile from Supabase
+    const { data: profile } = await sb
       .from('profiles')
       .select('*')
       .eq('id', user.id)
       .maybeSingle();
 
-    const fullName = (profile && profile.full_name) || user.user_metadata?.full_name || 'Valued Customer';
-    const phoneNum = (profile && profile.phone) || user.user_metadata?.phone || '';
+    // Resolve full name & phone from profile table OR Auth metadata
+    const fullName = (profile && profile.full_name) || (user.user_metadata && user.user_metadata.full_name) || (user.user_metadata && user.user_metadata.name) || 'Valued Customer';
+    const phoneNum = (profile && profile.phone) || (user.user_metadata && user.user_metadata.phone) || '';
 
-    // Populate UI fields with real database info
-    $('hello').textContent = 'Hello, ' + fullName.split(' ')[0];
-    $('pn').value = fullName;
+    // Set "Hello Name" Header and fill profile inputs
+    const displayName = fullName !== 'Valued Customer' ? fullName.trim() : 'there';
+    $('hello').textContent = `Hello, ${displayName}`;
+    $('pn').value = fullName !== 'Valued Customer' ? fullName : '';
     $('pp').value = phoneNum;
-    $('pe').value = user.email;
+    $('pe').value = user.email || '';
 
-    // 3. Update dashboard counts dynamically from database objects
+    // 3. Metrics counters
     if (window.BC) {
       if (typeof BC.order?.all === 'function') $('mOrders').textContent = BC.order.all().length;
       if (typeof BC.quotes?.all === 'function') $('mQuotes').textContent = BC.quotes.all().length;
       if (typeof BC.wish?.get === 'function') $('mSaved').textContent = BC.wish.get().length;
     }
 
-    // 4. Handle Profile Form Submission (Saves to Supabase profiles table)
+    // 4. Save profile changes
     $('profForm').addEventListener('submit', async e => {
       e.preventDefault();
       const btn = e.target.querySelector('button[type="submit"]');
       btn.disabled = true;
       btn.textContent = 'Saving...';
 
+      const newName = $('pn').value.trim();
+      const newPhone = $('pp').value.trim();
+
       try {
-        const { error } = await sb.from('profiles').update({
-          full_name: $('pn').value.trim(),
-          phone: $('pp').value.trim()
-        }).eq('id', user.id);
+        const { error } = await sb.from('profiles').upsert({
+          id: user.id,
+          full_name: newName,
+          phone: newPhone,
+          updated_at: new Date().toISOString()
+        });
 
         if (error) throw error;
-        BC.toast('Profile updated successfully in database!');
-        $('hello').textContent = 'Hello, ' + $('pn').value.trim().split(' ')[0];
+        notify('Profile updated successfully!');
+        $('hello').textContent = `Hello, ${newName || 'there'}`;
       } catch (err) {
         alert('Error updating profile: ' + err.message);
       } finally {
@@ -343,7 +356,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
     });
 
-    // 5. Handle Tabs Switching
+    // 5. Tabs
     $('tabs').addEventListener('click', e => {
       const b = e.target.closest('.tab');
       if (!b) return;
@@ -352,7 +365,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       document.querySelectorAll('.panel').forEach(p => p.classList.toggle('hidden', p.id !== b.dataset.p));
     });
 
-    // 6. Handle Real Addresses from Supabase Database
+    // 6. Address list handling
     const fetchAddresses = async () => {
       const { data: addrs, error } = await sb.from('addresses').select('*').eq('user_id', user.id);
       if (error) { console.error('Could not fetch addresses', error); return; }
@@ -377,7 +390,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     await fetchAddresses();
 
-    // Add address form submission
+    // Add address
     $('addrForm').addEventListener('submit', async e => {
       e.preventDefault();
       const label = $('al').value.trim();
@@ -394,12 +407,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         alert('Could not add address: ' + error.message);
       } else {
         e.target.reset();
-        BC.toast('Address added');
+        notify('Address added successfully');
         await fetchAddresses();
       }
     });
 
-    // Address actions (Make default / Remove)
+    // Default / Remove address
     $('addrList').addEventListener('click', async e => {
       const defBtn = e.target.closest('[data-def]');
       const delBtn = e.target.closest('[data-del]');
@@ -408,19 +421,19 @@ document.addEventListener('DOMContentLoaded', async () => {
         const id = defBtn.dataset.def;
         await sb.from('addresses').update({ is_default: false }).eq('user_id', user.id);
         await sb.from('addresses').update({ is_default: true }).eq('id', id);
-        BC.toast('Default address updated');
+        notify('Default address updated');
         await fetchAddresses();
       }
 
       if (delBtn) {
         const id = delBtn.dataset.del;
         await sb.from('addresses').delete().eq('id', id);
-        BC.toast('Address removed');
+        notify('Address removed');
         await fetchAddresses();
       }
     });
 
-    // 7. Handle Password Update via Supabase Auth
+    // 7. Security (Password change)
     $('pwForm').addEventListener('submit', async e => {
       e.preventDefault();
       const cur = $('cp').value;
@@ -448,7 +461,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const { error: updateErr } = await sb.auth.updateUser({ password: nw });
         if (updateErr) throw updateErr;
 
-        BC.toast('Password updated successfully!');
+        notify('Password updated successfully!');
         e.target.reset();
       } catch (err) {
         $('pwMsg').textContent = err.message;
@@ -459,7 +472,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
   } catch (err) {
-    console.error('Account initialization error:', err);
+    console.error('Account page error:', err);
   }
 });
 </script>
