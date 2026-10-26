@@ -1,0 +1,3 @@
+[build]
+  command = "node inject-env.js"
+  publish = "."

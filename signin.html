@@ -97,7 +97,9 @@ document.getElementById('signinForm').addEventListener('submit', async (e) => {
   
   msgEl.textContent = '';
 
-  if (!window.BCLive || typeof window.BCLive.signIn !== 'function') {
+  const sb = (window.BCLive && window.BCLive.sb) || (window.supabase && typeof window.supabase.createClient === 'function' && window.BC_CONFIG ? window.supabase.createClient(window.BC_CONFIG.SUPABASE_URL, window.BC_CONFIG.SUPABASE_ANON_KEY) : null);
+
+  if (!sb) {
     msgEl.textContent = 'Database client is still initializing. Please wait a second.';
     return;
   }
@@ -106,13 +108,33 @@ document.getElementById('signinForm').addEventListener('submit', async (e) => {
   btn.innerHTML = '<span class="spinner"></span> Signing in...';
 
   try {
-    await window.BCLive.signIn(emailInput, passwordInput);
-    
+    // 1. Authenticate user session with Supabase
+    const { data, error } = await sb.auth.signInWithPassword({
+      email: emailInput,
+      password: passwordInput,
+    });
+
+    if (error) throw error;
+
+    // 2. Fetch role from profiles table (Fixed to match your actual schema)
+    const { data: profile } = await sb
+      .from('profiles')
+      .select('role')
+      .eq('id', data.user.id)
+      .maybeSingle();
+
+    const role = (profile && profile.role) || 'retail';
+
     msgEl.style.color = 'var(--success)';
     msgEl.textContent = 'Success! Redirecting...';
-    
+
+    // 3. Smart Redirect: Owner, Admin, or Staff go straight to admin-dashboard.html
     setTimeout(() => {
-      window.location.href = 'account.html';
+      if (role === 'owner' || role === 'admin' || role === 'staff') {
+        window.location.href = 'admin-dashboard.html';
+      } else {
+        window.location.href = 'account.html';
+      }
     }, 600);
 
   } catch (err) {
