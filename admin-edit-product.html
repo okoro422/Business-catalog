@@ -268,7 +268,7 @@ body.admin-body{flex-direction:row}
       <div class="card stack" style="gap:10px">
         <div class="field"><label for="status">Status</label><select id="status"><option>Active</option><option>Hidden</option><option>Draft</option></select></div>
         
-        <!-- NEW: Publishing options to control where the product appears -->
+        <!-- Publishing options to control where the product appears -->
         <div class="field" style="margin-top:6px;">
           <label>Where do you want to publish this product?</label>
           <div style="display:flex; flex-direction:column; gap:8px; margin-top:6px;">
@@ -344,100 +344,105 @@ body.admin-body{flex-direction:row}
 <script>
 /* Admin Product Form Handler with Supabase */
 (function () {
-  // TODO: Replace with your actual Supabase URL and Anon Key
-  const SUPABASE_URL = 'YOUR_SUPABASE_PROJECT_URL';
-  const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
-  const supabaseClient = window.supabase && SUPABASE_URL !== 'YOUR_SUPABASE_PROJECT_URL' 
-    ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) 
-    : null;
-
   const $ = id => document.getElementById(id);
   const urlParams = new URLSearchParams(location.search);
   const productId = urlParams.get('id');
   let currentImgUrl = '';
 
+  // Initialize Supabase client using global configuration
+  const supabaseClient = (window.BCLive && window.BCLive.sb) || (window.supabase && typeof window.supabase.createClient === 'function' && window.BC_CONFIG ? window.supabase.createClient(window.BC_CONFIG.SUPABASE_URL, window.BC_CONFIG.SUPABASE_ANON_KEY) : null);
+
   async function loadProductData() {
     if (!productId || !supabaseClient) return;
-    const { data, error } = await supabaseClient.from('products').select('*').eq('id', productId).single();
-    if (data && !error) {
-      $('h').textContent = 'Edit: ' + data.name;
-      $('name').value = data.name || '';
-      $('sku').value = data.sku || 'SKU-' + data.id;
-      $('cat').value = data.cat || 'skincare';
-      $('price').value = data.price || '';
-      $('stock').value = data.stock || 0;
-      $('isFeatured').checked = data.is_featured !== false;
-      $('isShop').checked = data.is_shop !== false;
-      if (data.img) {
-        currentImgUrl = data.img;
-        $('prev').innerHTML = `<img src="${data.img}" alt="${data.name}">`;
+    try {
+      const { data, error } = await supabaseClient.from('products').select('*').eq('id', productId).single();
+      if (data && !error) {
+        $('h').textContent = 'Edit: ' + data.name;
+        if ($('name')) $('name').value = data.name || '';
+        if ($('sku')) $('sku').value = data.sku || 'SKU-' + data.id;
+        if ($('cat')) $('cat').value = data.cat || 'skincare';
+        if ($('price')) $('price').value = data.price || '';
+        if ($('stock')) $('stock').value = data.stock || 0;
+        if ($('isFeatured')) $('isFeatured').checked = data.is_featured !== false;
+        if ($('isShop')) $('isShop').checked = data.is_shop !== false;
+        if (data.img) {
+          currentImgUrl = data.img;
+          $('prev').innerHTML = `<img src="${data.img}" alt="${data.name}">`;
+        }
       }
+    } catch (err) {
+      console.error('Error loading product data:', err);
     }
   }
 
   document.addEventListener('DOMContentLoaded', () => {
     loadProductData();
 
-    $('price').addEventListener('input', () => {
-      const v = +$('price').value.replace(/\D/g, '');
-      if (v) {
-        $('t12').value = Math.round(v * .83 / 10) * 10;
-        $('t48').value = Math.round(v * .75 / 10) * 10;
-        $('t96').value = Math.round(v * .68 / 10) * 10;
-      }
-    });
-
-    $('file').addEventListener('change', e => {
-      const f = e.target.files[0];
-      if (!f) return;
-      const r = new FileReader();
-      r.onload = x => {
-        currentImgUrl = x.target.result;
-        $('prev').innerHTML = `<img src="${currentImgUrl}" alt="Preview">`;
-      };
-      r.readAsDataURL(f);
-    });
-
-    $('form').addEventListener('submit', async e => {
-      e.preventDefault();
-      const name = $('name').value.trim();
-      const price = +$('price').value.replace(/\D/g, '');
-      if (!name || !price) {
-        $('msg').textContent = 'Name and retail price are required.';
-        return;
-      }
-
-      const productPayload = {
-        name: name,
-        sku: $('sku').value.trim() || 'SKU-' + Date.now(),
-        cat: $('cat').value,
-        price: price,
-        stock: +$('stock').value || 0,
-        img: currentImgUrl,
-        is_featured: $('isFeatured').checked, // Controls home display
-        is_shop: $('isShop').checked          // Controls catalog display
-      };
-
-      if (supabaseClient) {
-        let error;
-        if (productId) {
-          const res = await supabaseClient.from('products').update(productPayload).eq('id', productId);
-          error = res.error;
-        } else {
-          productPayload.id = 'prod-' + Date.now();
-          const res = await supabaseClient.from('products').insert([productPayload]);
-          error = res.error;
+    if ($('price')) {
+      $('price').addEventListener('input', () => {
+        const v = +$('price').value.replace(/\D/g, '');
+        if (v) {
+          if ($('t12')) $('t12').value = Math.round(v * .83 / 10) * 10;
+          if ($('t48')) $('t48').value = Math.round(v * .75 / 10) * 10;
+          if ($('t96')) $('t96').value = Math.round(v * .68 / 10) * 10;
         }
+      });
+    }
 
-        if (error) {
-          $('msg').textContent = 'Error saving to database: ' + error.message;
+    if ($('file')) {
+      $('file').addEventListener('change', e => {
+        const f = e.target.files[0];
+        if (!f) return;
+        const r = new FileReader();
+        r.onload = x => {
+          currentImgUrl = x.target.result;
+          $('prev').innerHTML = `<img src="${currentImgUrl}" alt="Preview">`;
+        };
+        r.readAsDataURL(f);
+      });
+    }
+
+    if ($('form')) {
+      $('form').addEventListener('submit', async e => {
+        e.preventDefault();
+        const name = $('name').value.trim();
+        const price = +$('price').value.replace(/\D/g, '');
+        if (!name || !price) {
+          $('msg').textContent = 'Name and retail price are required.';
           return;
         }
-      }
 
-      alert('Product saved successfully with your publishing preferences!');
-      location.href = 'admin-products.html';
-    });
+        const productPayload = {
+          name: name,
+          sku: $('sku').value.trim() || 'SKU-' + Date.now(),
+          cat: $('cat').value,
+          price: price,
+          stock: +$('stock').value || 0,
+          img: currentImgUrl,
+          is_featured: $('isFeatured').checked,
+          is_shop: $('isShop').checked
+        };
+
+        if (supabaseClient) {
+          let error;
+          if (productId) {
+            const res = await supabaseClient.from('products').update(productPayload).eq('id', productId);
+            error = res.error;
+          } else {
+            const res = await supabaseClient.from('products').insert([productPayload]);
+            error = res.error;
+          }
+
+          if (error) {
+            $('msg').textContent = 'Error saving to database: ' + error.message;
+            return;
+          }
+        }
+
+        alert('Product saved successfully with your publishing preferences!');
+        location.href = 'admin-products.html';
+      });
+    }
   });
 })();
 </script>

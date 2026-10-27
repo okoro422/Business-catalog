@@ -352,7 +352,7 @@ body.admin-body{flex-direction:row}
   <h1 id="h">Products</h1>
   <div class="pills" id="filters" style="margin:0"></div>
   <div class="table-wrap">
-    <table><thead><tr><th>Product</th><th>Retail</th><th>Stock</th><th>Status</th></tr></thead><tbody id="rows"></tbody></table>
+    <table><thead><tr><th>Product</th><th>Retail</th><th>Stock</th><th>Status</th></tr></thead><tbody id="rows"><tr><td colspan="4" class="muted" style="text-align:center">Loading products from database...</td></tr></tbody></table>
   </div>
   <div class="btn-row" style="margin:0">
     <a href="admin-edit-product.html" class="btn"><i class="fa-solid fa-plus"></i> Add product</a>
@@ -475,275 +475,84 @@ body.admin-body{flex-direction:row}
     if (layout === 'admin' && main) { body.classList.add('admin-body'); adminShell(main); }
   });
 
-  /* ---- global click handling (works for content added later by page scripts) ---- */
+  /* ---- global click handling ---- */
   document.addEventListener('click', e => {
-    // clickable table rows / cards (any element with a data-href attribute)
     const row = e.target.closest('[data-href]');
     if (row && !e.target.closest('a,button,select,input,textarea,label')) { location.href = row.dataset.href; return; }
 
-    // bottom sheets (mobile menu / admin "More")
     const opener = e.target.closest('[data-sheet]');
     if (opener) { const s = document.getElementById('sheet-' + opener.dataset.sheet); if (s) s.classList.add('open'); return; }
     if (e.target.classList && e.target.classList.contains('sheet')) { e.target.classList.remove('open'); return; }
 
-    // mobile search bar
     if (e.target.closest('#searchToggle')) { const b = document.getElementById('mobileSearch'); b.classList.add('open'); b.querySelector('input').focus(); return; }
     if (e.target.closest('#searchClose')) { document.getElementById('mobileSearch').classList.remove('open'); return; }
-
-    // every "+" add-to-cart button on any page
-    const add = e.target.closest('.add-btn');
-    if (add && !add.disabled) {
-      e.preventDefault();
-      const i = add.querySelector('i'); if (i) i.className = 'fa-solid fa-check';
-      if (window.BC) BC.addFromButton(add);
-      setTimeout(() => { if (i) i.className = 'fa-solid fa-plus'; }, 1200);
-      return;
-    }
-
-    // pills / tabs made of <button>: highlight the clicked one
-    const b = e.target.closest('button.pill, button.tab');
-    if (b) {
-      const group = b.closest('.pills, .tabs');
-      if (group) { group.querySelectorAll('.pill, .tab').forEach(x => x.classList.remove('active')); b.classList.add('active'); }
-    }
   });
   document.addEventListener('keydown', e => { if (e.key === 'Escape') document.querySelectorAll('.sheet.open').forEach(s => s.classList.remove('open')); });
 })();
 </script>
 <script>
-/* Business Catalog - shared catalogue + cart/checkout store.
-   Uses localStorage so the whole shop works BEFORE the backend exists.
-   Backend phase: replace read/write with Supabase calls (search "TODO (backend)"). */
-(function () {
-  const SEED_DEMO = true; // set to false so every visitor starts with an empty cart / no demo orders
-  const K = { cart: 'bc_cart', info: 'bc_checkout', pay: 'bc_pay', last: 'bc_last_order', orders: 'bc_orders', seq: 'bc_seq', quotes: 'bc_quotes', qseq: 'bc_qseq', wish: 'bc_wish' };
-  const naira = n => '₦' + Math.round(n).toLocaleString('en-NG');
-  const read = (k, d) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } };
-  const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} };
-
-  /* ---- catalogue (TODO backend: select * from products) ---- */
-  const U = id => 'https://images.unsplash.com/photo-' + id + '?auto=format&fit=crop&w=400&q=80';
-  const tiers = p => [
-    { label: 'Dozen', qty: 12, price: Math.round(p * .83 / 10) * 10 },
-    { label: '48 pcs · Save 25%', qty: 48, price: Math.round(p * .75 / 10) * 10 },
-    { label: 'Carton', qty: 96, price: Math.round(p * .68 / 10) * 10 }
-  ];
-  const P = (id, name, cat, price, stock, icon, bulk, img) => ({ id, name, cat, price, stock, icon, bulk: !!bulk, img: img || '', tiers: tiers(price) });
-  const PRODUCTS = [
-    P('shea-250', 'Shea Soap 250g', 'bath-body', 1200, 240, 'fa-pump-soap', 1, U('1571781926291-c477ebfd024b')),
-    P('aloe-500', 'Aloe Lotion 500ml', 'skincare', 4500, 8, 'fa-bottle-droplet', 0, U('1535585209827-a15fcdbc4c2d')),
-    P('mint-250', 'Mint Wash 250ml', 'toiletries', 2900, 60, 'fa-pump-soap', 1, U('1556228720-195a672e8a03')),
-    P('argan-100', 'Argan Oil 100ml', 'hair', 6800, 35, 'fa-prescription-bottle', 0, U('1608248597359-974b1236fb48')),
-    P('shea-150', 'Shea Butter Soap 150g', 'bath-body', 1200, 240, 'fa-pump-soap', 1, U('1571781926291-c477ebfd024b')),
-    P('coco-200', 'Coconut Hair Cream 200ml', 'hair', 3200, 50, 'fa-bottle-droplet'),
-    P('charcoal-150', 'Charcoal Face Wash 150ml', 'skincare', 2600, 22, 'fa-pump-soap'),
-    P('rose-500', 'Rose Body Wash 500ml', 'bath-body', 3800, 40, 'fa-pump-soap'),
-    P('vitc-30', 'Vitamin C Serum 30ml', 'skincare', 7500, 14, 'fa-prescription-bottle'),
-    P('tooth-120', 'Everyday Toothpaste 120g', 'toiletries', 900, 300, 'fa-tooth', 1),
-    P('roll-50', 'Roll-on Deodorant 50ml', 'toiletries', 1500, 0, 'fa-spray-can-sparkles'),
-    P('sanit-500', 'Hand Sanitiser 500ml', 'toiletries', 2200, 80, 'fa-hand-sparkles', 1)
-  ];
-  const ZONES = {
-    A: { name: 'Zone A · Inner city', short: 'Zone A', areas: ['Wuse', 'Garki', 'Maitama', 'Jabi'], fee: 1500, freeOver: 50000 },
-    B: { name: 'Zone B · Mid ring', short: 'Zone B', areas: ['Gwarinpa', 'Lokogoma', 'Kado'], fee: 2500 },
-    C: { name: 'Zone C · Outer', short: 'Zone C', areas: ['Kubwa', 'Lugbe', 'Nyanya'], fee: 4500 }
-  };
-  const byId = id => PRODUCTS.find(p => p.id === id);
-  const minQty = mode => (mode === 'wholesale' ? 12 : 1);
-  const priceFor = (p, qty, mode) => {
-    if (mode !== 'wholesale') return p.price;
-    const t = p.tiers.filter(t => qty >= t.qty).pop();
-    return t ? t.price : p.price;
-  };
-  const fee = (z, subtotal) => { const zone = ZONES[z]; if (!zone) return 0; return zone.freeOver && subtotal >= zone.freeOver ? 0 : zone.fee; };
-  const thumb = p => p.img
-    ? `<img src="${p.img}" alt="${p.name}" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='block'"><i class="fa-solid ${p.icon}" style="display:none"></i>`
-    : `<i class="fa-solid ${p.icon}"></i>`;
-
-  /* ---- UI helpers ---- */
-  function refresh() {
-    const n = cart.count();
-    document.querySelectorAll('[data-count="cart"]').forEach(el => {
-      el.textContent = n;
-      if (el.classList.contains('badge-dot')) el.style.display = n ? '' : 'none';
-    });
-  }
-  function toast(msg) {
-    const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg;
-    document.body.appendChild(t); setTimeout(() => t.remove(), 1800);
-  }
-
-  /* ---- cart (TODO backend: sync with a cart table for signed-in users) ---- */
-  const SEED = [
-    { key: 'shea-150|wholesale', id: 'shea-150', mode: 'wholesale', qty: 48, price: 900 },
-    { key: 'aloe-500|single', id: 'aloe-500', mode: 'single', qty: 2, price: 4500 },
-    { key: 'mint-250|single', id: 'mint-250', mode: 'single', qty: 1, price: 2900 }
-  ];
-  const cart = {
-    get() { let c = read(K.cart, null); if (c === null) { c = SEED_DEMO ? SEED : []; write(K.cart, c); } return c; },
-    save(c) { write(K.cart, c); refresh(); document.dispatchEvent(new Event('bc:cart')); },
-    add(id, qty, mode) {
-      const p = byId(id); if (!p || p.stock < 1) return false;
-      mode = mode || 'single'; qty = Math.max(minQty(mode), qty || 1);
-      const c = cart.get(), key = id + '|' + mode;
-      let line = c.find(l => l.key === key);
-      if (line) line.qty = Math.min(p.stock, line.qty + qty);
-      else { line = { key, id, mode, qty: Math.min(p.stock, qty) }; c.push(line); }
-      line.price = priceFor(p, line.qty, mode);
-      cart.save(c); return true;
-    },
-    setQty(key, qty) {
-      const c = cart.get(), l = c.find(x => x.key === key); if (!l) return;
-      const p = byId(l.id);
-      l.qty = Math.max(minQty(l.mode), Math.min(p.stock, qty));
-      l.price = priceFor(p, l.qty, l.mode);
-      cart.save(c);
-    },
-    remove(key) { cart.save(cart.get().filter(l => l.key !== key)); },
-    clear() { cart.save([]); },
-    count() { return cart.get().length; },
-    lines() {
-      return cart.get().filter(l => byId(l.id)).map(l => {
-        const p = byId(l.id);
-        return Object.assign({}, l, { product: p, name: p.name + (l.mode === 'wholesale' ? ' · wholesale' : ''), total: l.price * l.qty });
-      });
-    },
-    totals() {
-      let retail = 0, subtotal = 0;
-      cart.lines().forEach(l => { retail += l.product.price * l.qty; subtotal += l.total; });
-      return { retail, subtotal, savings: retail - subtotal };
-    }
-  };
-
-  /* ---- checkout info, payment, orders, quotes, saved items ---- */
-  const DEMO_ORDERS = [
-    { id: 'BC-10482', date: '2026-10-17T10:00:00', status: 'Out for delivery', customer: 'Amaka Johnson', method: 'cash', zone: 'Zone A · Inner city', area: 'Wuse 2', subtotal: 52200, fee: 1500, total: 53700,
-      items: [{ name: 'Shea Butter Soap 150g · wholesale', qty: 48, price: 900, total: 43200 }, { name: 'Aloe Lotion 500ml', qty: 2, price: 4500, total: 9000 }] },
-    { id: 'BC-10431', date: '2026-10-09T14:00:00', status: 'Delivered', customer: 'Amaka Johnson', method: 'transfer', zone: 'Zone A · Inner city', area: 'Garki', subtotal: 19500, fee: 1500, total: 21000,
-      items: [{ name: 'Aloe Lotion 500ml', qty: 1, price: 4500, total: 4500 }, { name: 'Argan Oil 100ml', qty: 1, price: 6800, total: 6800 }, { name: 'Mint Wash 250ml', qty: 2, price: 2900, total: 5800 }, { name: 'Shea Butter Soap 150g', qty: 2, price: 1200, total: 2400 }] }
-  ];
-  const DEMO_QUOTES = [
-    { id: 'SR-2031', title: 'Pure Salon', items: 3, status: 'Quote ready', total: 861600, validDays: 7 },
-    { id: 'SR-2034', title: 'Glow Spa', items: 12, status: 'In review' },
-    { id: 'SR-2019', title: 'Glow Spa', items: 6, status: 'Accepted', order: 'BC-10399' }
-  ];
-  const info = { get() { return read(K.info, {}); }, set(patch) { write(K.info, Object.assign(read(K.info, {}), patch)); } };
-  const pay = { get() { return read(K.pay, 'online'); }, set(m) { write(K.pay, m); } };
-  const order = {
-    last() { return read(K.last, null); },
-    all() { const real = read(K.orders, []); return (SEED_DEMO ? real.concat(DEMO_ORDERS) : real).sort((a, b) => new Date(b.date) - new Date(a.date)); },
-    place() {
-      // TODO (backend): insert into orders + order_items; use the order id/total the server returns.
-      const t = cart.totals(), i = info.get(), z = i.zone || 'A', seq = read(K.seq, 10483) + 1, f = fee(z, t.subtotal);
-      const o = {
-        id: 'BC-' + seq, date: new Date().toISOString(), status: 'Placed',
-        items: cart.lines().map(l => ({ name: l.name, qty: l.qty, price: l.price, total: l.total })),
-        subtotal: t.subtotal, fee: f, total: t.subtotal + f,
-        zone: ZONES[z].name, area: i.area, street: i.street, customer: i.name, phone: i.phone, method: pay.get()
-      };
-      write(K.seq, seq); write(K.last, o); write(K.orders, [o].concat(read(K.orders, [])));
-      cart.clear(); return o;
-    }
-  };
-  const quotes = {
-    all() { let q = read(K.quotes, null); if (q === null) { q = SEED_DEMO ? DEMO_QUOTES : []; write(K.quotes, q); } return q; },
-    add(data) { // TODO (backend): insert into supply_requests
-      const n = read(K.qseq, 2036) + 1; write(K.qseq, n);
-      const q = Object.assign({ id: 'SR-' + n, status: 'In review', created: new Date().toISOString() }, data);
-      write(K.quotes, [q].concat(quotes.all())); return q;
-    },
-    setStatus(id, status) { write(K.quotes, quotes.all().map(q => q.id === id ? Object.assign({}, q, { status }) : q)); }
-  };
-  const wish = {
-    get() { let w = read(K.wish, null); if (w === null) { w = SEED_DEMO ? ['shea-150', 'aloe-500', 'mint-250', 'argan-100', 'coco-200'] : []; write(K.wish, w); } return w; },
-    has(id) { return wish.get().includes(id); },
-    toggle(id) { const w = wish.get(); const i = w.indexOf(id); if (i < 0) w.push(id); else w.splice(i, 1); write(K.wish, w); return i < 0; },
-    remove(id) { write(K.wish, wish.get().filter(x => x !== id)); }
-  };
-
-  /* "+" buttons on product cards (works with or without data-id) */
-  function addFromButton(btn) {
-    const card = btn.closest('.product-card');
-    let id = btn.dataset.id || (card && card.dataset.id);
-    if (!id && card) { const h = card.querySelector('h3'); const p = h && PRODUCTS.find(x => x.name === h.textContent.trim()); id = p && p.id; }
-    const ok = id && cart.add(id, 1, 'single');
-    toast(ok ? 'Added to cart' : 'Sorry, out of stock');
-  }
-
-  window.BC = { naira, products: PRODUCTS, byId, priceFor, minQty, zones: ZONES, fee, thumb, cart, info, pay, order, quotes, wish, toast, addFromButton, refresh };
-  document.addEventListener('DOMContentLoaded', refresh);
-  window.addEventListener('storage', refresh);
-})();
-</script>
-<script>
-/* Demo data + helpers for staff pages. TODO (backend): replace with Supabase queries. */
-(function () {
-  const read = (k, d) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } };
-  const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} };
-  const naira = n => '₦' + Math.round(n).toLocaleString('en-NG');
-  const STATUSES = ['New', 'Confirmed', 'Packed', 'Out for delivery', 'Delivered'];
-  const O = (id, customer, tier, zone, area, total, status, pay, fee, items) =>
-    ({ id, customer, tier, zone, area, total, status, pay, fee, items: items || [['Assorted items', total - fee]] });
-  const orders = [
-    O('BC-10482', 'Amoka O.', 'Retail', 'A', 'Wuse 2', 53700, 'New', 'Cash on delivery', 1500, [['48 × Shea Soap', 43200], ['2 × Aloe Lotion', 9000]]),
-    O('BC-10481', 'Glow Spa', 'Wholesale T2', 'B', 'Gwarinpa', 174820, 'Confirmed', 'Transfer on delivery', 2500, [['96 × Shea Soap', 78720], ['24 × Aloe Lotion', 93600]]),
-    O('BC-10480', 'Tunde A.', 'Retail', 'C', 'Kubwa', 9800, 'Packed', 'Transfer on delivery', 4500),
-    O('BC-10479', 'Kemi B.', 'Retail', 'A', 'Garki', 12400, 'New', 'Cash on delivery', 1500),
-    O('BC-10478', 'Royal Spa', 'Wholesale T1', 'B', 'Lokogoma', 148000, 'Confirmed', 'Online', 2500),
-    O('BC-10477', 'Ife Beauty', 'Wholesale T1', 'B', 'Kado', 86500, 'Out for delivery', 'Online', 2500),
-    O('BC-10476', 'Sade L.', 'Retail', 'A', 'Maitama', 7600, 'Packed', 'Cash on delivery', 1500),
-    O('BC-10475', 'Bola S.', 'Retail', 'C', 'Lugbe', 22100, 'Out for delivery', 'Transfer on delivery', 4500)
-  ];
-  const customers = [
-    { id: 'amoka', name: 'Amoka O.', tier: 'Retail', orders: 3, spent: '₦86k', lifetime: '₦86k', avg: '₦29k', out: '₦0', zone: 'A', phone: '+234 803 111 2222' },
-    { id: 'glow-spa', name: 'Glow Spa', tier: 'Wholesale T2', orders: 22, spent: '₦4.1M', lifetime: '₦4.1M', avg: '₦186k', out: '₦0', zone: 'B', phone: '+234 802 333 4444' },
-    { id: 'pure-salon', name: 'Pure Salon', tier: 'Pending', orders: 0, spent: '—', lifetime: '₦0', avg: '—', out: '₦0', zone: 'A', phone: '+234 805 555 6666' },
-    { id: 'royal-spa', name: 'Royal Spa', tier: 'Wholesale T1', orders: 9, spent: '₦1.2M', lifetime: '₦1.2M', avg: '₦133k', out: '₦148k', zone: 'B', phone: '+234 807 777 8888' },
-    { id: 'tunde', name: 'Tunde A.', tier: 'Retail', orders: 5, spent: '₦64k', lifetime: '₦64k', avg: '₦13k', out: '₦0', zone: 'C', phone: '+234 809 999 0000' }
-  ];
-  const supply = [
-    { id: 'SR-2031', biz: 'Pure Salon', zone: 'A', status: 'New', items: 3 }, { id: 'SR-2036', biz: 'Royal Spa', zone: 'B', status: 'New', items: 5 },
-    { id: 'SR-2034', biz: 'Glow Spa', zone: 'B', status: 'In review', items: 12 }, { id: 'SR-2033', biz: 'Zen Salon', zone: 'A', status: 'In review', items: 4 },
-    { id: 'SR-2029', biz: 'Ife Beauty', zone: 'B', status: 'Quoted', items: 8 }, { id: 'SR-2027', biz: 'Bola Stores', zone: 'C', status: 'Quoted', items: 6 },
-    { id: 'SR-2019', biz: 'Glow Spa', zone: 'B', status: 'Accepted', items: 6 }, { id: 'SR-2015', biz: 'Royal Spa', zone: 'B', status: 'Accepted', items: 9 }
-  ];
-  const ACT_SEED = [['10:02', 'Chidi', 'Stock change', 'Shea Soap 250 → 240'], ['09:40', 'Ngozi', 'Status change', 'BC-10480 Packed'], ['Yesterday', 'Ibrahim', 'Status change', 'BC-10477 Out for delivery']];
-
-  window.ADMIN = {
-    naira, read, write, STATUSES, orders, customers, supply, ACT_SEED,
-    status(o) { return (read('adm_status', {})[o.id]) || o.status; },
-    setStatus(id, s) { const m = read('adm_status', {}); m[id] = s; write('adm_status', m); ADMIN.log('Status change', id + ' ' + s); },
-    supplyStatus(r) { return (read('adm_supply', {})[r.id]) || r.status; },
-    setSupplyStatus(id, s) { const m = read('adm_supply', {}); m[id] = s; write('adm_supply', m); ADMIN.log('Quote ' + s.toLowerCase(), id); },
-    log(action, item) { const d = new Date(); write('adm_log', [[d.toTimeString().slice(0, 5), 'Chidi', action, item]].concat(read('adm_log', [])).slice(0, 100)); },
-    activity() { return read('adm_log', []).concat(ACT_SEED); },
-    toast(m) { const t = document.createElement('div'); t.className = 'toast'; t.textContent = m; document.body.appendChild(t); setTimeout(() => t.remove(), 1800); },
-    badge(s) { return '<span class="badge' + (s === 'Delivered' || s === 'Accepted' ? '' : s === 'Out for delivery' || s === 'Packed' ? ' warn' : s === 'New' ? '' : ' gray') + '">' + s + '</span>'; }
-  };
-})();
-</script>
-<script>
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
   const $ = id => document.getElementById(id);
   let f = 'all';
-  // TODO (backend): select * from products
-  const status = p => p.stock < 1 ? 'hidden' : 'active';
-  const rows = BC.products;
+  let products = [];
+
+  // Initialize Supabase client
+  const sb = (window.BCLive && window.BCLive.sb) || (window.supabase && typeof window.supabase.createClient === 'function' && window.BC_CONFIG ? window.supabase.createClient(window.BC_CONFIG.SUPABASE_URL, window.BC_CONFIG.SUPABASE_ANON_KEY) : null);
+
+  const naira = n => '₦' + Math.round(n).toLocaleString('en-NG');
+
+  // Fetch products live from Supabase
+  async function fetchProducts() {
+    if (!sb) {
+      $('rows').innerHTML = '<tr><td colspan="4" class="muted" style="text-align:center">Database client unavailable.</td></tr>';
+      return;
+    }
+    try {
+      const { data, error } = await sb.from('products').select('*').order('name');
+      if (error) throw error;
+      products = data || [];
+      render();
+    } catch (err) {
+      console.error('Error fetching products:', err);
+      $('rows').innerHTML = '<tr><td colspan="4" class="text-danger" style="text-align:center">Failed to load products from database.</td></tr>';
+    }
+  }
+
+  const getStatus = p => (p.stock < 1 ? 'hidden' : (p.status || 'active'));
+
   function render() {
-    const low = rows.filter(p => p.stock > 0 && p.stock <= 10).length;
-    $('h').textContent = 'Products (' + rows.length + ')';
+    const low = products.filter(p => p.stock > 0 && p.stock <= 10).length;
+    $('h').textContent = 'Products (' + products.length + ')';
     $('filters').innerHTML = [['all', 'All'], ['active', 'Active'], ['low', 'Low stock ' + low], ['hidden', 'Hidden']]
       .map(x => `<button type="button" class="pill ${x[0] === f ? 'active' : ''}" data-f="${x[0]}">${x[1]}</button>`).join('');
-    const list = rows.filter(p => f === 'all' || (f === 'low' ? p.stock > 0 && p.stock <= 10 : status(p) === f));
-    $('rows').innerHTML = list.map(p => `<tr class="clickable" data-href="admin-edit-product.html?id=${p.id}">
-      <td>${p.name}</td><td>${BC.naira(p.price)}</td>
-      <td class="${p.stock > 0 && p.stock <= 10 ? 'text-warning' : ''}">${p.stock}${p.stock > 0 && p.stock <= 10 ? ' low' : ''}</td>
-      <td><span class="badge ${status(p) === 'active' ? '' : 'gray'}">${status(p) === 'active' ? 'Active' : 'Hidden'}</span></td></tr>`).join('') || '<tr><td colspan="4" class="muted">No products</td></tr>';
+    
+    const list = products.filter(p => {
+      const st = getStatus(p);
+      if (f === 'all') return true;
+      if (f === 'low') return p.stock > 0 && p.stock <= 10;
+      return st === f;
+    });
+
+    $('rows').innerHTML = list.map(p => `
+      <tr class="clickable" data-href="admin-edit-product.html?id=${p.id}">
+        <td><strong>${p.name}</strong><br><small class="muted">SKU: ${p.sku || 'N/A'}</small></td>
+        <td>${naira(p.price || 0)}</td>
+        <td class="${p.stock > 0 && p.stock <= 10 ? 'text-warning' : ''}">${p.stock}${p.stock > 0 && p.stock <= 10 ? ' low' : ''}</td>
+        <td><span class="badge ${getStatus(p) === 'active' ? '' : 'gray'}">${getStatus(p)}</span></td>
+      </tr>
+    `).join('') || '<tr><td colspan="4" class="muted" style="text-align:center">No products found</td></tr>';
   }
-  $('filters').addEventListener('click', e => { const b = e.target.closest('.pill'); if (b) { f = b.dataset.f; render(); } });
+
+  $('filters').addEventListener('click', e => { 
+    const b = e.target.closest('.pill'); 
+    if (b) { f = b.dataset.f; render(); } 
+  });
+  
   $('importBtn').addEventListener('click', () => $('csv').click());
-  $('csv').addEventListener('change', e => { if (e.target.files[0]) ADMIN.toast('Selected: ' + e.target.files[0].name + ' (connect to backend import)'); });
-  render();
+  $('csv').addEventListener('change', e => { if (e.target.files[0]) alert('Selected: ' + e.target.files[0].name); });
+
+  // Load products on startup
+  fetchProducts();
 });
 </script>
 </body>

@@ -198,7 +198,6 @@ body.admin-body{flex-direction:row}
   </div>
 
 <script>
-// Interactive Quick Action Dropdown Handler
 document.addEventListener('DOMContentLoaded', () => {
   const qaBtn = document.getElementById('qa');
   const qaMenu = document.getElementById('qaMenu');
@@ -211,11 +210,9 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 });
 
-// Authentication & Dynamic Data Handler
 document.addEventListener('DOMContentLoaded', async () => {
   const $ = id => document.getElementById(id);
 
-  // Sign out handler
   const signOut = async () => {
     try {
       const sb = window.BCLive?.sb || (window.supabase && BC_CONFIG ? window.supabase.createClient(BC_CONFIG.SUPABASE_URL, BC_CONFIG.SUPABASE_ANON_KEY) : null);
@@ -228,7 +225,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   if ($('adminSignOutBtn')) $('adminSignOutBtn').addEventListener('click', signOut);
 
-  // Initialize Supabase Database client
   const sb = (window.BCLive && window.BCLive.sb) || (window.supabase && typeof window.supabase.createClient === 'function' && window.BC_CONFIG ? window.supabase.createClient(window.BC_CONFIG.SUPABASE_URL, window.BC_CONFIG.SUPABASE_ANON_KEY) : null);
 
   if (!sb) {
@@ -238,7 +234,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   try {
-    // 1. Session & Role Verification
     const { data: { session }, error: sessErr } = await sb.auth.getSession();
     if (sessErr || !session) {
       window.location.href = 'staff-login.html';
@@ -248,7 +243,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     const user = session.user;
     if ($('staffUserEmail')) $('staffUserEmail').textContent = user.email;
 
-    // Check staff permissions in profiles table
     const { data: profile } = await sb
       .from('profiles')
       .select('*')
@@ -257,7 +251,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const role = (profile && profile.role) || 'retail';
     
-    // Updated check to allow owner, staff, and admin roles
     if (role !== 'owner' && role !== 'staff' && role !== 'admin') {
       alert('Access Denied. Accounts without proper privileges cannot access this portal.');
       await sb.auth.signOut();
@@ -265,11 +258,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       return;
     }
 
-    // Set Greeting Name
     const firstName = (profile && profile.full_name) ? profile.full_name.split(' ')[0] : 'Admin';
     if ($('greetingHeading')) $('greetingHeading').textContent = `Welcome back, ${firstName}`;
 
-    // 2. Load Real Metric Counts from Database
     try {
       const { count: oCount } = await sb.from('orders').select('*', { count: 'exact', head: true });
       if (oCount !== null) $('mOrders').textContent = oCount;
@@ -283,7 +274,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       const { count: cCount } = await sb.from('profiles').select('*', { count: 'exact', head: true }).eq('account_type', 'retail');
       if (cCount !== null) $('mCustomers').textContent = cCount;
 
-      // Pending Action Items
       const { count: pOrders } = await sb.from('orders').select('*', { count: 'exact', head: true }).eq('status', 'pending');
       if (pOrders !== null) $('pendingOrdersCount').textContent = pOrders;
 
@@ -293,7 +283,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       console.log('Metrics loading notice:', metricErr);
     }
 
-    // 3. Load Recent Orders into Dashboard Table
     try {
       const { data: recentOrders } = await sb
         .from('orders')
