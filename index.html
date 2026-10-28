@@ -313,7 +313,7 @@ body.has-tabbar{padding-bottom:var(--tabbar)}
       el.style.display = n > 0 ? 'inline-flex' : 'none';
     });
     document.querySelectorAll('[data-count="messages"]').forEach(el => {
-      const msgCount = 0; // set dynamically if unread chat messages exist
+      const msgCount = 0; 
       el.textContent = msgCount;
       el.style.display = msgCount > 0 ? 'inline-flex' : 'none';
     });
@@ -386,6 +386,11 @@ body.has-tabbar{padding-bottom:var(--tabbar)}
   window.BC = { naira, products: () => PRODUCTS, byId, priceFor, minQty, cart, toast, addFromButton, refresh };
 
   document.addEventListener('DOMContentLoaded', () => {
+    // Clear out any old pre-filled mock cart localStorage if it has items from previous hardcoded testing
+    if (localStorage.getItem('bc_cart_initialized') !== 'true') {
+      localStorage.removeItem('bc_cart');
+      localStorage.setItem('bc_cart_initialized', 'true');
+    }
     refresh();
     fetchProducts();
   });
