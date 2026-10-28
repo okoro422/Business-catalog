@@ -40,7 +40,7 @@ h1,h2,h3,h4{font-family:var(--font-display);color:var(--ink-900);line-height:1.2
 h1{font-size:clamp(1.5rem,3vw,1.9rem)}h2{font-size:1.35rem}h3{font-size:1.05rem}h4{font-size:1rem}
 .muted{color:var(--ink-500)}.small{font-size:12px}.hidden{display:none!important}
 .text-success{color:var(--success)}.text-warning{color:var(--warning)}.text-danger{color:var(--danger)}
-.toast{position:fixed;left:50%;bottom:96px;transform:translateX(-50%);background:var(--ink-900);color:#fff;padding:10px 18px;border-radius:var(--r-pill);z-index:200;font-size:13px;box-shadow:var(--shadow-2);max-width:90vw;text-align:center}
+.toast{position:fixed;left:50%;bottom:96px;transform:translateX(-50%);background:var(--ink-900);color:#fff;padding:10px 18px;border-radius:var(--r-pill);z-index:200;font-size:13px;box-shadow:var(--shadow-2);text-align:center}
 
 /* ---------- Shop shell ---------- */
 .announcement{background:var(--forest-900);color:#fff;text-align:center;font-size:12px;font-weight:500;padding:8px 16px}
@@ -155,9 +155,9 @@ body.has-tabbar{padding-bottom:var(--tabbar)}
     </div>
     <!-- PERMANENT HERO IMAGES (All 3 Guaranteed to Show Side-by-Side) -->
     <div class="hero-visual">
-      <img src="https://images.unsplash.com/photo-1556228720-195a672e8a03?auto=format&fit=crop&w=300&q=80" alt="Skincare Product">
-      <img src="https://images.unsplash.com/photo-1608248597359-f5383a8b273b?auto=format&fit=crop&w=300&q=80" alt="Cosmetic Bottle">
-      <img src="https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?auto=format&fit=crop&w=300&q=80" alt="Beauty Care">
+      <img src="https://images.unsplash.com/photo-1526947425960-945c6e72858f?auto=format&fit=crop&w=300&q=80" alt="Cosmetic Serum">
+      <img src="https://images.unsplash.com/photo-1556228720-195a672e8a03?auto=format&fit=crop&w=300&q=80" alt="Skin Care Bottle">
+      <img src="https://images.unsplash.com/photo-1535585209827-a15fcdbc4c2d?auto=format&fit=crop&w=300&q=80" alt="Body Lotion">
     </div>
   </section>
 
@@ -224,7 +224,7 @@ body.has-tabbar{padding-bottom:var(--tabbar)}
         <div class="header-actions">
           <button class="icon-link mobile-only" id="searchToggle" aria-label="Search" type="button"><i class="fa-solid fa-magnifying-glass"></i></button>
           <a class="icon-link" href="notifications.html" aria-label="Notifications"><i class="fa-regular fa-bell"></i></a>
-          <a class="icon-link" href="chat.html"><i class="fa-regular fa-comment-dots"></i><span class="lbl">Messages</span><span class="badge-dot">2</span></a>
+          <a class="icon-link" href="chat.html"><i class="fa-regular fa-comment-dots"></i><span class="lbl">Messages</span><span class="badge-dot" data-count="messages" style="display:none">0</span></a>
           <a class="icon-link" href="cart.html"><i class="fa-solid fa-cart-shopping"></i><span class="lbl">Cart</span><span class="badge-dot" data-count="cart" style="display:none">0</span></a>
           <a class="icon-link desktop-only" href="account.html"><i class="fa-regular fa-user"></i><span class="lbl">Account</span></a>
           <button class="icon-link mobile-only" data-sheet="menu" aria-label="Menu" type="button"><i class="fa-solid fa-bars"></i></button>
@@ -276,12 +276,12 @@ body.has-tabbar{padding-bottom:var(--tabbar)}
 </script>
 
 <script>
-/* Supabase Product Grid Integration */
+/* Supabase Product Grid & Dynamic Badge Integration */
 (function () {
-  const SUPABASE_URL = 'YOUR_SUPABASE_PROJECT_URL';
-  const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
+  const SUPABASE_URL = 'https://teqoogvtshbhohxddvrd.supabase.co';
+  const SUPABASE_ANON_KEY = window.BC_CONFIG && window.BC_CONFIG.SUPABASE_ANON_KEY ? window.BC_CONFIG.SUPABASE_ANON_KEY : 'YOUR_SUPABASE_ANON_KEY';
   
-  const supabaseClient = window.supabase && SUPABASE_URL !== 'YOUR_SUPABASE_PROJECT_URL' 
+  const supabaseClient = window.supabase && typeof window.supabase.createClient === 'function'
     ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) 
     : null;
 
@@ -310,7 +310,12 @@ body.has-tabbar{padding-bottom:var(--tabbar)}
     const n = cart.count();
     document.querySelectorAll('[data-count="cart"]').forEach(el => {
       el.textContent = n;
-      if (el.classList.contains('badge-dot')) el.style.display = n ? '' : 'none';
+      el.style.display = n > 0 ? 'inline-flex' : 'none';
+    });
+    document.querySelectorAll('[data-count="messages"]').forEach(el => {
+      const msgCount = 0; // set dynamically if unread chat messages exist
+      el.textContent = msgCount;
+      el.style.display = msgCount > 0 ? 'inline-flex' : 'none';
     });
   }
 
@@ -353,7 +358,7 @@ body.has-tabbar{padding-bottom:var(--tabbar)}
 
     grid.innerHTML = items.map(p => `
       <article class="product-card" data-id="${p.id}">
-        <a href="product-details.html?id=${p.id}"><div class="product-img"><img src="${p.img || ''}" alt="${esc(p.name)}" loading="lazy" onerror="this.style.display='none'"></div></a>
+        <a href="product-details.html?id=${p.id}"><div class="product-img"><img src="${p.image_url || p.img || ''}" alt="${esc(p.name)}" loading="lazy" onerror="this.style.display='none'"></div></a>
         <div><h3><a href="product-details.html?id=${p.id}">${esc(p.name)}</a></h3><p class="small ${p.stock < 10 ? 'text-warning' : 'muted'}">${p.stock > 0 ? (p.stock < 10 ? 'Low stock: ' + p.stock + ' left' : 'In stock') : 'Out of stock'}</p></div>
         <div class="product-foot"><span class="price">${naira(p.price)}</span><button class="add-btn" data-id="${p.id}" aria-label="Add to cart"><i class="fa-solid fa-plus"></i></button></div>
       </article>
