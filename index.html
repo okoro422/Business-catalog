@@ -6,18 +6,11 @@
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Fraunces:opsz,wght@9..144,400;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-
-<!-- 1. Load Supabase CDN JS Library FIRST -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
-<!-- 2. Load Configuration SECOND so window.BC_CONFIG exists -->
 <script src="./config.js"></script>
-
-<!-- 3. Load your Backend / Supabase logic next -->
 <script src="supabase-client.js"></script>
 <script src="auth.js"></script>
 <style>
-/* Business Catalog - ONE shared stylesheet for every page */
 :root{
   --forest-900:#0F2A1D;--forest-800:#17382A;--forest-700:#1F4D36;--forest-600:#2C6B4A;
   --sage-300:#B9CDB9;--mint-200:#CFE8D5;--mint-100:#E8F5EC;--mint-50:#F3FAF5;
@@ -40,7 +33,7 @@ h1,h2,h3,h4{font-family:var(--font-display);color:var(--ink-900);line-height:1.2
 h1{font-size:clamp(1.5rem,3vw,1.9rem)}h2{font-size:1.35rem}h3{font-size:1.05rem}h4{font-size:1rem}
 .muted{color:var(--ink-500)}.small{font-size:12px}.hidden{display:none!important}
 .text-success{color:var(--success)}.text-warning{color:var(--warning)}.text-danger{color:var(--danger)}
-.toast{position:fixed;left:50%;bottom:96px;transform:translateX(-50%);background:var(--ink-900);color:#fff;padding:10px 18px;border-radius:var(--r-pill);z-index:200;font-size:13px;box-shadow:var(--shadow-2);text-align:center}
+.toast{position:fixed;left:50%;bottom:96px;transform:translateX(-50%);background:var(--ink-900);color:#fff;padding:10px 18px;border-radius:var(--r-pill);z-index:200;font-size:13px;box-shadow:var(--shadow-2);max-width:90vw;text-align:center}
 
 /* ---------- Shop shell ---------- */
 .announcement{background:var(--forest-900);color:#fff;text-align:center;font-size:12px;font-weight:500;padding:8px 16px}
@@ -53,7 +46,7 @@ h1{font-size:clamp(1.5rem,3vw,1.9rem)}h2{font-size:1.35rem}h3{font-size:1.05rem}
 .header-search{display:none;flex:1;position:relative;max-width:420px}
 .header-search i{position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--ink-500)}
 .header-search input{width:100%;height:40px;border-radius:var(--r-pill);border:1px solid var(--border);background:var(--cream-100);padding:0 16px 0 38px;font:inherit;outline:none}
-.header-search input:focus,.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--forest-700);box-shadow:0 0 0 3px var(--mint-200)}
+.header-search input:focus{border-color:var(--forest-700);box-shadow:0 0 0 3px var(--mint-200)}
 .header-actions{margin-left:auto;display:flex;align-items:center;gap:2px}
 .icon-link{position:relative;display:inline-flex;align-items:center;gap:6px;padding:8px 10px;border-radius:var(--r-pill);background:none;border:0;cursor:pointer;color:var(--ink-900);font:inherit;font-size:13px}
 .icon-link:hover{background:var(--cream-100)}
@@ -64,7 +57,6 @@ h1{font-size:clamp(1.5rem,3vw,1.9rem)}h2{font-size:1.35rem}h3{font-size:1.05rem}
 .mobile-search.open{display:flex}
 .mobile-search input{flex:1;height:40px;border-radius:var(--r-pill);border:1px solid var(--border);background:var(--cream-100);padding:0 16px;font:inherit}
 .container{width:100%;max-width:var(--max);margin:0 auto;padding:24px 16px;flex:1}
-.container.narrow{max-width:900px}.container.xnarrow{max-width:520px}
 .site-footer{border-top:1px solid var(--border);padding:24px 20px;text-align:center;font-size:12px;color:var(--ink-500)}
 .site-footer a{margin:0 8px;text-decoration:underline}
 .tabbar{position:fixed;left:0;right:0;bottom:0;height:var(--tabbar);background:#fff;border-top:1px solid var(--border);display:flex;justify-content:space-around;align-items:center;z-index:60}
@@ -85,49 +77,44 @@ body.has-tabbar{padding-bottom:var(--tabbar)}
 /* ---------- Buttons ---------- */
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:11px 22px;border-radius:var(--r-pill);border:1px solid var(--forest-700);background:var(--forest-700);color:#fff;font:600 14px var(--font-body);cursor:pointer;transition:.2s;text-align:center}
 .btn:hover{background:var(--forest-800)}
+.btn.outline{background:transparent;color:var(--forest-700)}
 .btn.white{background:#fff;color:var(--forest-900);border-color:#fff}
 .btn.ghost-white{background:transparent;color:#fff;border-color:rgba(255,255,255,.6)}
+.btn.sm{padding:7px 14px;font-size:13px}
 .btn-row{display:flex;gap:12px;flex-wrap:wrap;margin-top:16px}
 .add-btn{width:34px;height:34px;border-radius:50%;border:0;background:var(--forest-700);color:#fff;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:.2s;flex-shrink:0}
 .add-btn:hover{background:var(--forest-600)}
+.add-btn:disabled{opacity:.4;cursor:not-allowed}
 
-/* ---------- Cards, grids & Hero ---------- */
+/* ---------- Grid & product cards ---------- */
 .grid{display:grid;gap:16px}
-.grid.cols-2{grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}
 .grid.products{grid-template-columns:repeat(2,1fr)}
 .section-head{display:flex;justify-content:space-between;align-items:center;margin:28px 0 14px}
 .product-card{background:#fff;border:1px solid var(--border);border-radius:var(--r-lg);padding:14px;display:flex;flex-direction:column;gap:10px;box-shadow:var(--shadow-1);transition:.2s}
 .product-card:hover{transform:translateY(-3px);box-shadow:var(--shadow-2)}
-.product-img{background:var(--mint-50);border:1px solid var(--mint-100);border-radius:var(--r-md);height:150px;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.product-img{background:var(--mint-50);border:1px solid var(--mint-100);border-radius:var(--r-md);height:150px;display:flex;align-items:center;justify-content:center;font-size:42px;color:var(--forest-700);overflow:hidden}
 .product-img img{width:100%;height:100%;object-fit:cover}
 .product-foot{display:flex;justify-content:space-between;align-items:center;margin-top:auto}
 .price{font-weight:700;font-size:1.05rem;color:var(--ink-900)}
+.empty{text-align:center;padding:48px 16px;color:var(--ink-500)}
+.empty h3{margin-bottom:6px}.empty .btn{margin-top:14px}
 
-/* Permanent Hero Section Fix */
-.hero{background:var(--forest-900);color:#fff;border-radius:var(--r-lg);padding:32px 24px;display:grid;gap:24px;overflow:hidden}
+/* ---------- Hero ---------- */
+.hero{background:var(--forest-900);color:#fff;border-radius:var(--r-lg);padding:32px 24px;display:grid;gap:24px}
 .hero h1{color:#fff;font-size:clamp(1.7rem,4vw,2.6rem);margin:12px 0}
 .hero p{color:var(--sage-300);max-width:520px}
 .hero-tags{display:flex;gap:8px;flex-wrap:wrap}
-.hero-tags span{border:1px solid rgba(255,255,255,.3);border-radius:var(--r-pill);padding:3px 10px;font-size:11px;letter-spacing:.5px}
+.hero-tags span{border:1px solid rgba(255,255,255,.3);border-radius:var(--r-pill);padding:3px 10px;font-size:11px}
+.hero-visual{display:flex;gap:12px;align-items:center;justify-content:center}
+.hero-visual img{width:90px;height:130px;object-fit:cover;border-radius:12px;box-shadow:0 4px 12px rgba(0,0,0,.2)}
 
-/* Guaranteed Permanent Hero Visual Images - Forced Visible Flex */
-.hero-visual{display:flex !important;gap:12px !important;align-items:center !important;justify-content:center !important;flex-wrap:nowrap !important;margin-top:8px !important;}
-.hero-visual img{width:90px !important;height:130px !important;object-fit:cover !important;border-radius:12px !important;box-shadow:0 4px 12px rgba(0,0,0,.2) !important;flex-shrink:0 !important;display:block !important;}
-
-.promo{border-radius:var(--r-lg);padding:24px;display:block}
-.promo.light{background:var(--mint-100)}.promo.dark{background:var(--forest-700);color:#fff}.promo.dark h3{color:#fff}
-.empty{text-align:center;padding:48px 16px;color:var(--ink-500)}
-
-/* Pills & Badges */
+/* ---------- Pills ---------- */
 .pills{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;margin-bottom:18px;scrollbar-width:none}
-.pill{background:var(--cream-100);border:1px solid var(--border);color:var(--ink-500);padding:8px 16px;border-radius:var(--r-pill);font:600 12px var(--font-body);white-space:nowrap;cursor:pointer;transition:.2s}
+.pill{background:var(--cream-100);border:1px solid var(--border);color:var(--ink-500);padding:8px 16px;border-radius:var(--r-pill);font:600 12px var(--font-body);white-space:nowrap;cursor:pointer;transition:.2s;display:inline-block}
 .pill.active{background:var(--forest-700);border-color:var(--forest-700);color:#fff}
-.toast{position:fixed;left:50%;bottom:96px;transform:translateX(-50%);background:var(--ink-900);color:#fff;padding:10px 18px;border-radius:var(--r-pill);z-index:200;font-size:13px;box-shadow:var(--shadow-2);text-align:center}
 
-@media(min-width:640px){
-  .grid.products{grid-template-columns:repeat(3,1fr)}
-  .icon-link .lbl{display:inline}
-}
+/* ---------- Responsive ---------- */
+@media(min-width:640px){.grid.products{grid-template-columns:repeat(3,1fr)}.icon-link .lbl{display:inline}}
 @media(min-width:900px){
   .desktop-nav{display:flex}.header-search{display:block}
   .header-inner{padding:12px 32px}
@@ -136,9 +123,9 @@ body.has-tabbar{padding-bottom:var(--tabbar)}
   .container{padding:32px}
   .grid.products{grid-template-columns:repeat(4,1fr)}
   .hero{grid-template-columns:1.3fr 1fr;padding:48px}
-  .hero-visual img{width:110px !important;height:150px !important;}
 }
 @media(max-width:899px){.desktop-only{display:none!important}}
+@media print{.announcement,.site-header,.tabbar,.site-footer,.toast{display:none!important}}
 </style>
 </head>
 <body data-layout="shop" data-section="home">
@@ -153,11 +140,10 @@ body.has-tabbar{padding-bottom:var(--tabbar)}
         <a href="supply-request.html" class="btn ghost-white">Request supply pricing</a>
       </div>
     </div>
-    <!-- PERMANENT HERO IMAGES (All 3 Guaranteed to Show Side-by-Side) -->
     <div class="hero-visual">
-      <img src="https://images.unsplash.com/photo-1526947425960-945c6e72858f?auto=format&fit=crop&w=300&q=80" alt="Cosmetic Serum">
-      <img src="https://images.unsplash.com/photo-1556228720-195a672e8a03?auto=format&fit=crop&w=300&q=80" alt="Skin Care Bottle">
-      <img src="https://images.unsplash.com/photo-1535585209827-a15fcdbc4c2d?auto=format&fit=crop&w=300&q=80" alt="Body Lotion">
+      <img src="https://images.unsplash.com/photo-1526947425960-945c6e72858f?auto=format&fit=crop&w=300&q=80" alt="Cosmetic serum" loading="lazy">
+      <img src="https://images.unsplash.com/photo-1556228720-195a672e8a03?auto=format&fit=crop&w=300&q=80" alt="Skin care bottle" loading="lazy">
+      <img src="https://images.unsplash.com/photo-1535585209827-a15fcdbc4c2d?auto=format&fit=crop&w=300&q=80" alt="Body lotion" loading="lazy">
     </div>
   </section>
 
@@ -167,28 +153,21 @@ body.has-tabbar{padding-bottom:var(--tabbar)}
     <a class="pill" href="shop.html?cat=bath-body">Bath &amp; Body</a>
     <a class="pill" href="shop.html?cat=hair">Hair</a>
     <a class="pill" href="shop.html?cat=toiletries">Toiletries</a>
-    <a class="pill" href="shop.html?cat=bulk">Bulk packs</a>
   </div>
 
   <div class="section-head"><h2>Featured products</h2><a href="shop.html" class="muted">View all <i class="fa-solid fa-arrow-right"></i></a></div>
-  
-  <!-- Product grid container loaded dynamically from Supabase -->
-  <div class="grid products" id="productGrid">
-    <div class="empty" style="grid-column: 1 / -1;">Loading products...</div>
-  </div>
 
-  <div class="grid cols-2" style="margin-top:28px">
-    <a href="shop.html" class="promo light"><h3>Shop for yourself</h3><p>Retail prices, delivered to your doorstep.</p></a>
-    <a href="wholesale.html" class="promo dark"><h3>Buy in bulk</h3><p>Dozen and carton tiers, quotes in-app.</p></a>
+  <div class="grid products" id="productGrid">
+    <div class="empty" style="grid-column:1/-1">Loading products…</div>
   </div>
 </main>
 
 <script>
-/* Shared Layout & Navigation Script */
+/* ---------- Shell (header, footer, menus) ---------- */
 (function () {
   const body = document.body;
-  const layout = body.dataset.layout || 'shop';      
-  const section = body.dataset.section || '';        
+  const layout = body.dataset.layout || 'shop';
+  const section = body.dataset.section || '';
 
   const SHOP_NAV = [['Shop', 'shop.html', 'shop'], ['Wholesale', 'wholesale.html', 'wholesale'], ['Supply request', 'supply-request.html', 'supply']];
   const SHOP_TABS = [
@@ -215,7 +194,7 @@ body.has-tabbar{padding-bottom:var(--tabbar)}
     <div class="announcement">Free delivery in Abuja over ₦50,000</div>
     <header class="site-header">
       <div class="header-inner">
-        <a href="index.html" class="brand">OMAK store</a>
+        <a href="index.html" class="brand">OMAK Store</a>
         <nav class="desktop-nav">${links(SHOP_NAV)}</nav>
         <form class="header-search" action="shop.html" method="get">
           <i class="fa-solid fa-magnifying-glass"></i>
@@ -224,7 +203,7 @@ body.has-tabbar{padding-bottom:var(--tabbar)}
         <div class="header-actions">
           <button class="icon-link mobile-only" id="searchToggle" aria-label="Search" type="button"><i class="fa-solid fa-magnifying-glass"></i></button>
           <a class="icon-link" href="notifications.html" aria-label="Notifications"><i class="fa-regular fa-bell"></i></a>
-          <a class="icon-link" href="chat.html"><i class="fa-regular fa-comment-dots"></i><span class="lbl">Messages</span><span class="badge-dot" data-count="messages" style="display:none">0</span></a>
+          <a class="icon-link" href="chat.html"><i class="fa-regular fa-comment-dots"></i><span class="lbl">Messages</span></a>
           <a class="icon-link" href="cart.html"><i class="fa-solid fa-cart-shopping"></i><span class="lbl">Cart</span><span class="badge-dot" data-count="cart" style="display:none">0</span></a>
           <a class="icon-link desktop-only" href="account.html"><i class="fa-regular fa-user"></i><span class="lbl">Account</span></a>
           <button class="icon-link mobile-only" data-sheet="menu" aria-label="Menu" type="button"><i class="fa-solid fa-bars"></i></button>
@@ -241,7 +220,7 @@ body.has-tabbar{padding-bottom:var(--tabbar)}
     return `
     <footer class="site-footer desktop-only">
       <a href="support.html">Help &amp; support</a><a href="my-quotes.html">My quotes</a><a href="wishlist.html">Saved items</a><a href="notifications.html">Notifications</a><a href="staff-login.html">Staff portal</a>
-      <p style="margin-top:8px">© Business Catalog · Abuja, Nigeria</p>
+      <p style="margin-top:8px">© OMAK Store · Abuja, Nigeria</p>
     </footer>
     <nav class="tabbar mobile-only">${tabs(SHOP_TABS)}</nav>
     ${sheet('menu', 'Menu', SHOP_MENU)}`;
@@ -266,134 +245,134 @@ body.has-tabbar{padding-bottom:var(--tabbar)}
     const add = e.target.closest('.add-btn');
     if (add && !add.disabled) {
       e.preventDefault();
-      const i = add.querySelector('i'); if (i) i.className = 'fa-solid fa-check';
-      if (window.BC) BC.addFromButton(add);
-      setTimeout(() => { if (i) i.className = 'fa-solid fa-plus'; }, 1200);
-      return;
+      const ok = window.BC ? window.BC.addFromButton(add) : false;
+      if (ok) {
+        const i = add.querySelector('i'); if (i) { i.className = 'fa-solid fa-check'; setTimeout(() => { i.className = 'fa-solid fa-plus'; }, 1200); }
+      }
     }
   });
 })();
 </script>
 
 <script>
-/* Supabase Product Grid & Dynamic Badge Integration */
+/* ---------- Featured products from Supabase ---------- */
 (function () {
-  const SUPABASE_URL = 'https://teqoogvtshbhohxddvrd.supabase.co';
-  const SUPABASE_ANON_KEY = window.BC_CONFIG && window.BC_CONFIG.SUPABASE_ANON_KEY ? window.BC_CONFIG.SUPABASE_ANON_KEY : 'YOUR_SUPABASE_ANON_KEY';
-  
-  const supabaseClient = window.supabase && typeof window.supabase.createClient === 'function'
-    ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) 
-    : null;
-
-  const K = { cart: 'bc_cart', info: 'bc_checkout', pay: 'bc_pay', last: 'bc_last_order', orders: 'bc_orders', seq: 'bc_seq', quotes: 'bc_quotes', qseq: 'bc_qseq', wish: 'bc_wish' };
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const naira = n => '₦' + Math.round(n).toLocaleString('en-NG');
   const read = (k, d) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } };
   const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} };
 
-  let PRODUCTS = [];
+  function getClient() {
+    if (window.BCLive && window.BCLive.sb) return window.BCLive.sb;
+    const c = window.BC_CONFIG;
+    if (!window.supabase || !c || !c.SUPABASE_URL || !c.SUPABASE_ANON_KEY || /YOUR_SUPABASE/i.test(c.SUPABASE_URL)) return null;
+    if (!window.__bcSb) window.__bcSb = window.supabase.createClient(c.SUPABASE_URL, c.SUPABASE_ANON_KEY);
+    return window.__bcSb;
+  }
 
-  const tiers = p => [
-    { label: 'Dozen', qty: 12, price: Math.round(p * .83 / 10) * 10 },
-    { label: '48 pcs · Save 25%', qty: 48, price: Math.round(p * .75 / 10) * 10 },
-    { label: 'Carton', qty: 96, price: Math.round(p * .68 / 10) * 10 }
-  ];
+  // Only customer-safe columns (never request cost price)
+  const PUBLIC_COLS = 'id,name,sku,brand,category_slug,cat,price,stock,status,featured,is_featured,is_shop,image_url,img';
+  async function fetchProducts(sb) {
+    let r = await sb.from('products').select(PUBLIC_COLS + ',created_at');
+    if (r.error) r = await sb.from('products').select(PUBLIC_COLS);
+    if (r.error) r = await sb.from('products').select('*');
+    return r;
+  }
 
-  const byId = id => PRODUCTS.find(p => p.id === id);
-  const minQty = mode => (mode === 'wholesale' ? 12 : 1);
-  const priceFor = (p, qty, mode) => {
-    if (mode !== 'wholesale' || !p.tiers) return p.price;
-    const t = p.tiers.filter(t => qty >= t.qty).pop();
-    return t ? t.price : p.price;
+  const truthy = v => v === true || v === 'true' || v === 1;
+  const cleanImg = u => (typeof u === 'string' && u && u.indexOf('blob:') !== 0) ? u : '';
+  const normalize = p => { const img = cleanImg(p.image_url) || cleanImg(p.img); return Object.assign({}, p, { price: Number(p.price) || 0, stock: Number(p.stock) || 0, image_url: img, img }); };
+  const isLive = p => !p.status || p.status === 'active';
+  const onHome = p => {
+    const f = (p.is_featured !== null && p.is_featured !== undefined) ? p.is_featured : p.featured;
+    return f === null || f === undefined || truthy(f);   // legacy rows with no flag still show
   };
 
-  function refresh() {
-    const n = cart.count();
-    document.querySelectorAll('[data-count="cart"]').forEach(el => {
-      el.textContent = n;
-      el.style.display = n > 0 ? 'inline-flex' : 'none';
-    });
-    document.querySelectorAll('[data-count="messages"]').forEach(el => {
-      const msgCount = 0; 
-      el.textContent = msgCount;
-      el.style.display = msgCount > 0 ? 'inline-flex' : 'none';
-    });
-  }
+  let PRODUCTS = [];
+  const byId = id => PRODUCTS.find(p => String(p.id) === String(id));
 
-  function toast(msg) {
-    const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg;
-    document.body.appendChild(t); setTimeout(() => t.remove(), 1800);
-  }
-
+  /* Cart — same format as shop.html so both pages share one cart */
+  const CART_KEY = 'bc_cart';
   const cart = {
-    get() { return read(K.cart, []); },
-    save(c) { write(K.cart, c); refresh(); document.dispatchEvent(new Event('bc:cart')); },
-    add(id, qty, mode) {
+    get() {
+      return read(CART_KEY, []).map(l => l.key ? l : Object.assign({}, l, { mode: l.mode || 'single', key: l.id + '|' + (l.mode || 'single') }));
+    },
+    save(c) { write(CART_KEY, c); refresh(); document.dispatchEvent(new Event('bc:cart')); },
+    add(id) {
       const p = byId(id); if (!p || p.stock < 1) return false;
-      mode = mode || 'single'; qty = Math.max(minQty(mode), qty || 1);
-      const c = cart.get(), key = id + '|' + mode;
+      const c = cart.get(), key = p.id + '|single';
       let line = c.find(l => l.key === key);
-      if (line) line.qty = Math.min(p.stock, line.qty + qty);
-      else { line = { key, id, mode, qty: Math.min(p.stock, qty) }; c.push(line); }
-      line.price = priceFor(p, line.qty, mode);
+      if (line) line.qty = Math.min(p.stock, line.qty + 1);
+      else { line = { key, id: p.id, mode: 'single', qty: 1 }; c.push(line); }
+      line.price = p.price;
       cart.save(c); return true;
     },
     count() { return cart.get().length; }
   };
 
+  function refresh() {
+    const n = cart.count();
+    document.querySelectorAll('[data-count="cart"]').forEach(el => { el.textContent = n; el.style.display = n > 0 ? 'inline-flex' : 'none'; });
+  }
+  function toast(msg) {
+    document.querySelectorAll('.toast').forEach(t => t.remove());
+    const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg;
+    document.body.appendChild(t); setTimeout(() => t.remove(), 1800);
+  }
   function addFromButton(btn) {
     const card = btn.closest('.product-card');
-    let id = btn.dataset.id || (card && card.dataset.id);
-    const ok = id && cart.add(id, 1, 'single');
+    const id = btn.dataset.id || (card && card.dataset.id);
+    const ok = !!id && cart.add(id);
     toast(ok ? 'Added to cart' : 'Sorry, out of stock');
+    return ok;
   }
+
+  const thumb = p => p.image_url
+    ? `<img src="${esc(p.image_url)}" alt="${esc(p.name)}" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='block'"><i class="fa-solid fa-pump-soap" style="display:none"></i>`
+    : `<i class="fa-solid fa-pump-soap"></i>`;
 
   function renderGrid(items) {
-    const grid = document.getElementById('productGrid');
-    if (!grid) return;
-
-    if (!items || items.length === 0) {
-      grid.innerHTML = `<div class="empty" style="grid-column: 1 / -1;">No products available. Add items in your database!</div>`;
+    const grid = document.getElementById('productGrid'); if (!grid) return;
+    if (!items.length) {
+      grid.innerHTML = `<div class="empty" style="grid-column:1/-1"><h3>No featured products yet</h3><p>Browse our full catalog to see everything we stock.</p><a class="btn sm" href="shop.html">Go to shop</a></div>`;
       return;
     }
-
-    grid.innerHTML = items.map(p => `
-      <article class="product-card" data-id="${p.id}">
-        <a href="product-details.html?id=${p.id}"><div class="product-img"><img src="${p.image_url || p.img || ''}" alt="${esc(p.name)}" loading="lazy" onerror="this.style.display='none'"></div></a>
-        <div><h3><a href="product-details.html?id=${p.id}">${esc(p.name)}</a></h3><p class="small ${p.stock < 10 ? 'text-warning' : 'muted'}">${p.stock > 0 ? (p.stock < 10 ? 'Low stock: ' + p.stock + ' left' : 'In stock') : 'Out of stock'}</p></div>
-        <div class="product-foot"><span class="price">${naira(p.price)}</span><button class="add-btn" data-id="${p.id}" aria-label="Add to cart"><i class="fa-solid fa-plus"></i></button></div>
-      </article>
-    `).join('');
+    grid.innerHTML = items.map(p => {
+      const out = p.stock < 1;
+      const link = 'product-details.html?id=' + encodeURIComponent(p.id);
+      return `
+      <article class="product-card" data-id="${esc(p.id)}">
+        <a href="${link}"><div class="product-img">${thumb(p)}</div></a>
+        <div><h3><a href="${link}">${esc(p.name)}</a></h3>${out ? '<p class="small text-danger">Out of stock</p>' : ''}</div>
+        <div class="product-foot"><span class="price">${naira(p.price)}</span>
+        <button class="add-btn" data-id="${esc(p.id)}" type="button" aria-label="Add ${esc(p.name)} to cart" ${out ? 'disabled' : ''}><i class="fa-solid fa-plus"></i></button></div>
+      </article>`;
+    }).join('');
   }
 
-  const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-
-  async function fetchProducts() {
-    if (!supabaseClient) {
-      renderGrid([]);
-      return;
-    }
-
-    const { data, error } = await supabaseClient.from('products').select('*');
-    if (error) {
-      console.error('Error fetching products:', error);
-      return;
-    }
-
-    PRODUCTS = (data || []).map(p => Object.assign({}, p, { tiers: tiers(p.price) }));
-    renderGrid(PRODUCTS);
+  function showError() {
+    const grid = document.getElementById('productGrid'); if (!grid) return;
+    grid.innerHTML = `<div class="empty" style="grid-column:1/-1"><h3>We couldn't load products</h3><p>Please check your connection and try again.</p><button class="btn sm" type="button" onclick="location.reload()">Try again</button></div>`;
   }
 
-  window.BC = { naira, products: () => PRODUCTS, byId, priceFor, minQty, cart, toast, addFromButton, refresh };
-
-  document.addEventListener('DOMContentLoaded', () => {
-    // Clear out any old pre-filled mock cart localStorage if it has items from previous hardcoded testing
-    if (localStorage.getItem('bc_cart_initialized') !== 'true') {
-      localStorage.removeItem('bc_cart');
-      localStorage.setItem('bc_cart_initialized', 'true');
-    }
+  async function init() {
     refresh();
-    fetchProducts();
-  });
+    const sb = getClient();
+    if (!sb) { console.error('[Home] Supabase is not configured. Check config.js.'); showError(); return; }
+    try {
+      const { data, error } = await fetchProducts(sb);
+      if (error) throw error;
+      PRODUCTS = (data || []).map(normalize).filter(isLive);
+      renderGrid(PRODUCTS.filter(onHome));
+    } catch (err) {
+      console.error('[Home] Could not load products:', err);
+      showError();
+    }
+  }
+
+  window.BC = { naira, cart, toast, addFromButton, refresh };
+  window.addEventListener('storage', refresh);
+  document.addEventListener('DOMContentLoaded', init);
 })();
 </script>
 </body>

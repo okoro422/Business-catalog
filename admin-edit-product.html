@@ -2,17 +2,16 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
 <title>Edit Product — Business Catalog Admin</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Fraunces:opsz,wght@9..144,400;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-<!-- 1. Load Supabase CDN JS Library FIRST -->
+<!-- 1. Supabase library FIRST -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
-<!-- 2. Load Configuration SECOND so window.BC_CONFIG exists -->
+<!-- 2. Config SECOND so window.BC_CONFIG exists -->
 <script src="./config.js"></script>
-
-<!-- 3. Load your Backend / Supabase logic NEXT -->
+<!-- 3. Backend logic NEXT -->
 <script src="supabase-client.js"></script>
 <script src="auth.js"></script>
 <style>
@@ -71,7 +70,7 @@ h1{font-size:clamp(1.3rem,3vw,1.9rem)}h2{font-size:1.35rem}h3{font-size:1.05rem}
 .tabbar i{font-size:17px}.tabbar .active{color:var(--forest-700);font-weight:700}
 body.has-tabbar{padding-bottom:var(--tabbar)}
 
-/* Bottom sheet menu (mobile "Menu" / admin "More") */
+/* Bottom sheet menu */
 .sheet{position:fixed;inset:0;background:rgba(15,42,29,.5);z-index:95;display:none}
 .sheet.open{display:block}
 .sheet-panel{position:absolute;left:0;right:0;bottom:0;background:#fff;border-radius:20px 20px 0 0;padding:18px 16px calc(18px + env(safe-area-inset-bottom));max-height:82vh;overflow:auto}
@@ -94,7 +93,7 @@ body.has-tabbar{padding-bottom:var(--tabbar)}
 .add-btn:hover{background:var(--forest-600)}
 .link-danger{background:none;border:0;color:var(--danger);font:600 12px var(--font-body);cursor:pointer;text-decoration:underline}
 
-/* ---------- Cards, grids (Mobile-First Scalability) ---------- */
+/* ---------- Cards, grids ---------- */
 .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-md);padding:16px;box-shadow:var(--shadow-1);width:100%;overflow:hidden}
 a.card:hover{border-color:var(--sage-300)}
 .stack{display:flex;flex-direction:column;gap:16px;width:100%}
@@ -105,7 +104,7 @@ a.card:hover{border-color:var(--sage-300)}
 .page-head{margin-bottom:16px}.page-head p{color:var(--ink-500);margin-top:4px}
 .section-head{display:flex;justify-content:space-between;align-items:center;margin:20px 0 12px}
 
-/* ---------- Forms & Inputs (Mobile friendly sizing) ---------- */
+/* ---------- Forms & Inputs ---------- */
 .form-grid{display:grid;gap:14px;grid-template-columns:1fr}
 .field{display:flex;flex-direction:column;gap:6px;width:100%}
 .field label{font-size:12px;font-weight:600;color:var(--ink-500)}
@@ -113,9 +112,18 @@ a.card:hover{border-color:var(--sage-300)}
 .field input.err,.field select.err{border-color:var(--danger)}
 .field.full{grid-column:1/-1}.full{grid-column:1/-1}
 .form-msg{font-size:13px;color:var(--danger);min-height:18px}
+.form-msg.ok{color:var(--success)}
 .sel{padding:10px 12px;border:1px solid var(--border);border-radius:var(--r-sm);background:#fff;font:inherit;color:var(--ink-900);cursor:pointer;width:100%}
-.check{display:flex;gap:10px;align-items:center;cursor:pointer;font-size:13px;line-height:1.4}
-.check input[type="checkbox"]{width:18px;height:18px;accent-color:var(--forest-700)}
+.sel[readonly]{background:var(--cream-100);color:var(--ink-500);cursor:default}
+
+/* FIX: checkboxes live OUTSIDE .field so the global "appearance:none" can't hide them */
+.check-row{display:flex;align-items:center;gap:10px;cursor:pointer;padding:10px 12px;border:1px solid var(--border);border-radius:var(--r-md);background:var(--cream-100);user-select:none}
+.check-row:hover{border-color:var(--sage-300)}
+.check-row input[type=checkbox]{-webkit-appearance:checkbox;appearance:auto;width:20px;height:20px;min-width:20px;padding:0;margin:0;accent-color:var(--forest-700);cursor:pointer}
+.check-row span{font-size:13px;color:var(--ink-900)}
+.check-row code{font-size:12px;color:var(--ink-500)}
+.upload-prev{min-height:120px;background:var(--mint-50);border:1px dashed var(--border);border-radius:var(--r-sm);display:flex;align-items:center;justify-content:center;color:var(--ink-500);font-size:24px;overflow:hidden}
+.upload-prev img{width:100%;height:160px;object-fit:cover}
 
 /* ---------- Tables ---------- */
 .table-wrap{background:#fff;border:1px solid var(--border);border-radius:var(--r-md);overflow-x:auto;-webkit-overflow-scrolling:touch;box-shadow:var(--shadow-1);width:100%}
@@ -139,12 +147,10 @@ body.admin-body{flex-direction:row}
 .admin-top .u a:hover{color:var(--forest-700)}
 .admin-content{padding:16px;max-width:1150px;width:100%;display:flex;flex-direction:column;gap:16px;margin:0 auto}
 
-/* Tablet & Desktop Breakpoints */
 @media(min-width:640px){
   .form-grid{grid-template-columns:repeat(2,1fr)}
   .admin-content{padding:24px}
 }
-
 @media(min-width:900px){
   .admin-side{display:block}
   .admin-top{padding:16px 32px}
@@ -162,8 +168,8 @@ body.admin-body{flex-direction:row}
     <div class="stack">
       <div class="card">
         <div class="form-grid">
-          <div class="field full"><label for="name">Name</label><input id="name"></div>
-          <div class="field"><label for="sku">SKU</label><input id="sku"></div>
+          <div class="field full"><label for="name">Name</label><input id="name" autocomplete="off"></div>
+          <div class="field"><label for="sku">SKU</label><input id="sku" autocomplete="off"></div>
           <div class="field"><label for="cat">Category</label><select id="cat"><option value="skincare">Skincare</option><option value="hair">Hair</option><option value="bath-body">Bath &amp; Body</option><option value="toiletries">Toiletries</option></select></div>
           <div class="field"><label for="brand">Brand</label><input id="brand" value="Natural Essentials"></div>
           <div class="field"><label for="price">Retail price (₦)</label><input id="price" inputmode="numeric"></div>
@@ -172,33 +178,40 @@ body.admin-body{flex-direction:row}
           <div class="field"><label for="reorder">Reorder level</label><input id="reorder" inputmode="numeric" value="20"></div>
         </div>
       </div>
-      <div class="table-wrap"><table><thead><tr><th>Pack</th><th>Units</th><th>Price/unit (₦)</th></tr></thead><tbody>
-        <tr><td>Dozen</td><td>12</td><td><input class="sel" id="t12" inputmode="numeric"></td></tr>
-        <tr><td>48 pcs</td><td>48</td><td><input class="sel" id="t48" inputmode="numeric"></td></tr>
-        <tr><td>Carton</td><td>96</td><td><input class="sel" id="t96" inputmode="numeric"></td></tr></tbody></table></div>
+      <div class="table-wrap"><table><thead><tr><th>Pack</th><th>Units</th><th>Price/unit (₦) · auto</th></tr></thead><tbody>
+        <tr><td>Dozen</td><td>12</td><td><input class="sel" id="t12" readonly tabindex="-1"></td></tr>
+        <tr><td>48 pcs</td><td>48</td><td><input class="sel" id="t48" readonly tabindex="-1"></td></tr>
+        <tr><td>Carton</td><td>96</td><td><input class="sel" id="t96" readonly tabindex="-1"></td></tr></tbody></table></div>
+      <p class="small muted" style="margin-top:-6px">Wholesale pack prices are calculated automatically from the retail price (17%, 25% and 32% off).</p>
       <p class="form-msg" id="msg" role="alert"></p>
     </div>
-    
+
     <div class="stack">
       <div class="card stack" style="gap:10px">
-        <div class="field"><label for="status">Status</label><select id="status"><option>Active</option><option>Hidden</option><option>Draft</option></select></div>
-        
-        <!-- Publishing options to control where the product appears -->
-        <div class="field" style="margin-top:6px;">
-          <label>Where do you want to publish this product?</label>
-          <div style="display:flex; flex-direction:column; gap:8px; margin-top:6px;">
-            <label class="check"><input type="checkbox" id="isFeatured" checked> Feature on Homepage (`index.html`)</label>
-            <label class="check"><input type="checkbox" id="isShop" checked> Publish to Shop Catalog (`shop.html`)</label>
-          </div>
+        <div class="field"><label for="status">Status</label><select id="status"><option value="active">active</option><option value="hidden">hidden</option><option value="draft">draft</option></select></div>
+
+        <div class="stack" style="gap:8px;margin-top:6px">
+          <strong style="font-size:13px;color:var(--ink-900)">Where do you want to publish this product?</strong>
+          <label class="check-row" for="isFeatured">
+            <input type="checkbox" id="isFeatured">
+            <span>Feature on Homepage (<code>index.html</code>)</span>
+          </label>
+          <label class="check-row" for="isShop">
+            <input type="checkbox" id="isShop" checked>
+            <span>Publish to Shop Catalog (<code>shop.html</code>)</span>
+          </label>
+          <p class="small muted">Only products with status "active" are visible to customers.</p>
         </div>
       </div>
-      
+
       <div class="card stack" style="gap:10px">
         <strong>Product image</strong>
-        <div class="upload-prev" id="prev" style="min-height:120px; background:var(--mint-50); border:1px dashed var(--border); border-radius:var(--r-sm); display:flex; align-items:center; justify-content:center; color:var(--ink-500); font-size:24px;"><i class="fa-solid fa-image"></i></div>
-        <label for="file" class="btn outline sm" style="cursor:pointer; width:100%; text-align:center;">Upload from device</label><input type="file" id="file" accept="image/*" hidden>
+        <div class="upload-prev" id="prev"><i class="fa-solid fa-image"></i></div>
+        <label for="file" class="btn outline sm" style="cursor:pointer;width:100%;text-align:center">Upload from device</label>
+        <input type="file" id="file" accept="image/*" hidden>
+        <button type="button" class="link-danger hidden" id="removeImg">Remove image</button>
       </div>
-      <button class="btn block" type="submit">Publish</button>
+      <button class="btn block" type="submit" id="publishBtn">Publish</button>
       <button class="btn outline block" type="button" id="draft">Save draft</button>
     </div>
   </form>
@@ -207,31 +220,18 @@ body.admin-body{flex-direction:row}
 <script>
 (function () {
   const body = document.body;
-  const layout = body.dataset.layout || 'shop';      
-  const section = body.dataset.section || '';        
-  const title = body.dataset.title || '';            
+  const layout = body.dataset.layout || 'shop';
+  const section = body.dataset.section || '';
+  const title = body.dataset.title || '';
 
-  const SHOP_NAV = [['Shop', 'shop.html', 'shop'], ['Wholesale', 'wholesale.html', 'wholesale'], ['Supply request', 'supply-request.html', 'supply']];
   const ADMIN_NAV = [
     ['Dashboard', 'admin-dashboard.html', 'dashboard'], ['Products', 'admin-products.html', 'products'], ['Orders', 'admin-orders.html', 'orders'],
     ['Supply', 'admin-supply-requests.html', 'supply'], ['Customers', 'admin-customers.html', 'customers'], ['Inbox', 'admin-inbox.html', 'inbox'],
     ['Reports', 'admin-reports.html', 'reports'], ['Settings', 'admin-delivery-zones.html', 'settings']
   ];
-  const ADMIN_TABS = [
-    ['Dashboard', 'admin-dashboard.html', 'dashboard', 'fa-solid fa-chart-line'], ['Orders', 'admin-orders.html', 'orders', 'fa-solid fa-box-archive'],
-    ['Inbox', 'admin-inbox.html', 'inbox', 'fa-regular fa-comment-dots'], ['Products', 'admin-products.html', 'products', 'fa-solid fa-store']
-  ];
-  const ADMIN_MENU = [
-    ['Supply requests', 'admin-supply-requests.html', 'fa-solid fa-file-invoice', 'supply'], ['Customers', 'admin-customers.html', 'fa-regular fa-address-book', 'customers'],
-    ['Reports', 'admin-reports.html', 'fa-solid fa-chart-column', 'reports'], ['Delivery zones & settings', 'admin-delivery-zones.html', 'fa-solid fa-truck', 'settings'],
-    ['Categories', 'admin-categories.html', 'fa-solid fa-tags', ''], ['Staff and roles', 'admin-staff.html', 'fa-solid fa-user-shield', ''],
-    ['Activity log', 'admin-activity-log.html', 'fa-solid fa-clock-rotate-left', ''], ['View store', 'index.html', 'fa-solid fa-shop', ''],
-    ['Sign out', 'staff-login.html', 'fa-solid fa-right-from-bracket', '']
-  ];
 
   const cls = k => (k && k === section ? 'active' : '');
   const links = arr => arr.map(([t, h, k]) => `<a href="${h}" class="${cls(k)}">${t}</a>`).join('');
-  const tabs = arr => arr.map(([t, h, k, i]) => `<a href="${h}" class="${cls(k)}"><i class="${i}"></i><span>${t}</span></a>`).join('');
 
   function adminShell(main) {
     const wrap = document.createElement('div');
@@ -256,36 +256,231 @@ body.admin-body{flex-direction:row}
   });
 })();
 </script>
+
 <script>
-/* Admin Product Form Handler with Supabase */
+/* Product form handler — Supabase (database + storage) */
 (function () {
   const $ = id => document.getElementById(id);
-  const urlParams = new URLSearchParams(location.search);
-  const productId = urlParams.get('id');
-  let currentImgUrl = '';
+  const BUCKET = 'product-images';
+  const productId = new URLSearchParams(location.search).get('id');
 
-  // Initialize Supabase client using global configuration
-  const supabaseClient = (window.BCLive && window.BCLive.sb) || (window.supabase && typeof window.supabase.createClient === 'function' && window.BC_CONFIG ? window.supabase.createClient(window.BC_CONFIG.SUPABASE_URL, window.BC_CONFIG.SUPABASE_ANON_KEY) : null);
+  let currentImgUrl = '';   // permanent URL already saved for this product
+  let pendingFile = null;   // newly chosen file, uploaded on save
+  let busy = false;
 
+  /* ---------- Supabase client (reuse the shared one if it exists) ---------- */
+  function getClient() {
+    if (window.BCLive && window.BCLive.sb) return window.BCLive.sb;
+    const c = window.BC_CONFIG;
+    if (!window.supabase || !c || !c.SUPABASE_URL || !c.SUPABASE_ANON_KEY || /YOUR_SUPABASE/i.test(c.SUPABASE_URL)) return null;
+    if (!window.__bcSb) window.__bcSb = window.supabase.createClient(c.SUPABASE_URL, c.SUPABASE_ANON_KEY);
+    return window.__bcSb;
+  }
+  const sb = getClient();
+
+  /* ---------- Helpers ---------- */
+  const num = v => { const n = parseFloat(String(v == null ? '' : v).replace(/[^0-9.]/g, '')); return isNaN(n) ? 0 : n; };
+  const slug = s => String(s).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  const truthy = v => v === true || v === 'true' || v === 1;
+  const isBlob = u => typeof u === 'string' && u.indexOf('blob:') === 0;
+
+  function setMsg(text, ok) {
+    const m = $('msg'); m.textContent = text || '';
+    m.classList.toggle('ok', !!ok);
+  }
+  function friendly(err) {
+    const m = (err && err.message) || String(err);
+    if (err && (err.code === '42501' || /row-level security|permission denied/i.test(m)))
+      return 'Permission denied by database security. Make sure you are signed in as staff and that the products table allows staff to save.';
+    if (/column .* does not exist|schema cache/i.test(m)) return 'A database column is missing: ' + m;
+    if (/failed to fetch|networkerror|load failed/i.test(m)) return 'Network problem. Check your internet connection and try again.';
+    return m;
+  }
+  function setBusy(on, label) {
+    busy = on;
+    $('publishBtn').disabled = on; $('draft').disabled = on;
+    $('publishBtn').textContent = on && label === 'publish' ? 'Saving…' : 'Publish';
+    $('draft').textContent = on && label === 'draft' ? 'Saving…' : 'Save draft';
+  }
+
+  function showPreview(src, alt) {
+    const prev = $('prev'); prev.textContent = '';
+    if (src) {
+      const im = new Image(); im.src = src; im.alt = alt || 'Product image';
+      prev.appendChild(im);
+    } else {
+      prev.innerHTML = '<i class="fa-solid fa-image"></i>';
+    }
+    $('removeImg').classList.toggle('hidden', !src);
+  }
+
+  /* Wholesale tiers (same maths as shop.html) */
+  function updateTiers() {
+    const p = num($('price').value);
+    const t = f => p ? Math.round(p * f / 10) * 10 : '';
+    $('t12').value = t(.83); $('t48').value = t(.75); $('t96').value = t(.68);
+  }
+  $('price').addEventListener('input', updateTiers);
+
+  /* ---------- Image processing & upload ---------- */
+  function compressImage(file, maxSize, quality) {
+    maxSize = maxSize || 1000; quality = quality || 0.85;
+    return new Promise((resolve, reject) => {
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = () => {
+        const scale = Math.min(1, maxSize / Math.max(img.width, img.height));
+        const w = Math.round(img.width * scale), h = Math.round(img.height * scale);
+        const c = document.createElement('canvas'); c.width = w; c.height = h;
+        const ctx = c.getContext('2d');
+        ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, w, h);
+        ctx.drawImage(img, 0, 0, w, h);
+        URL.revokeObjectURL(url);
+        c.toBlob(b => b ? resolve(b) : reject(new Error('Could not process this image.')), 'image/jpeg', quality);
+      };
+      img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('This file is not a supported image. Please use JPG or PNG.')); };
+      img.src = url;
+    });
+  }
+  const blobToDataURL = blob => new Promise((res, rej) => {
+    const r = new FileReader(); r.onload = () => res(r.result); r.onerror = () => rej(new Error('Could not read image.')); r.readAsDataURL(blob);
+  });
+  async function uploadImage(blob, key) {
+    const path = 'products/' + slug(key) + '-' + Date.now() + '.jpg';
+    const { error } = await sb.storage.from(BUCKET).upload(path, blob, { contentType: 'image/jpeg', cacheControl: '31536000', upsert: false });
+    if (error) throw error;
+    return sb.storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
+  }
+
+  $('file').addEventListener('change', e => {
+    const f = e.target.files && e.target.files[0];
+    if (!f) return;
+    if (f.size > 15 * 1024 * 1024) { setMsg('Image is too large (max 15 MB).'); e.target.value = ''; return; }
+    pendingFile = f;
+    const u = URL.createObjectURL(f);
+    showPreview(u, 'Preview');   // preview only — never saved to the database
+    setMsg('');
+  });
+  $('removeImg').addEventListener('click', () => {
+    pendingFile = null; currentImgUrl = ''; $('file').value = ''; showPreview('');
+  });
+
+  /* ---------- Load product (edit mode) ---------- */
   async function loadProductData() {
-    if (!productId || !supabaseClient) return;
+    updateTiers();
+    if (!productId) return;
+    if (!sb) { setMsg('Database client not initialised. Check config.js.'); return; }
     try {
-      const { data, error } = await supabaseClient.from('products').select('*').eq('id', productId).single();
-      if (data && !error) {
-        $('h').textContent = 'Edit: ' + data.name;
-        if ($('name')) $('name').value = data.name || '';
-        if ($('sku')) $('sku').value = data.sku || 'SKU-' + data.id;
-        if ($('cat')) $('cat').value = data.cat || data.category_slug || 'skincare';
-        if ($('brand')) $('brand').value = data.brand || 'Natural Essentials';
-        if ($('price')) $('price').value = data.price || '';
-        if ($('cost')) $('cost').value = data.cost || '';
-        if ($('stock')) $('stock').value = data.stock || 0;
-        if ($('reorder')) $('reorder').value = data.reorder_level || 20;
-        if ($('status')) $('status').value = data.status || 'Active';
-        if ($('isFeatured')) $('isFeatured').checked = data.is_featured !== false && data.featured !== false;
-        if ($('isShop')) $('isShop').checked = data.is_shop !== false;
-        
-        const imgVal = data.img || data.image_url;
-        if (imgVal) {
-          currentImgUrl = imgVal;
-          $('prev').innerHTML = `<img src="${imgVal}" alt="${data.name}" style="width:100%; height:120px
+      const { data, error } = await sb.from('products').select('*').eq('id', productId).single();
+      if (error) throw error;
+      $('h').textContent = 'Edit: ' + (data.name || 'product');
+      $('name').value = data.name || '';
+      $('sku').value = data.sku || '';
+      const catVal = data.category_slug || data.cat || 'skincare';
+      $('cat').value = [...$('cat').options].some(o => o.value === catVal) ? catVal : 'skincare';
+      $('brand').value = data.brand || 'Natural Essentials';
+      $('price').value = data.price || '';
+      $('cost').value = data.cost || '';
+      $('stock').value = data.stock != null ? data.stock : 0;
+      $('reorder').value = data.reorder_level != null ? data.reorder_level : 20;
+      $('status').value = data.status || 'active';
+      $('isFeatured').checked = truthy(data.is_featured) || truthy(data.featured);
+      $('isShop').checked = !(data.is_shop === false || data.is_shop === 'false');
+      updateTiers();
+
+      const img = data.image_url || data.img || '';
+      if (img && !isBlob(img)) { currentImgUrl = img; showPreview(img, data.name); }
+      else if (isBlob(img)) { setMsg('The saved image for this product was a temporary link and has expired. Please upload it again.'); }
+    } catch (err) {
+      console.error('Error loading product:', err);
+      setMsg('Could not load product: ' + friendly(err));
+    }
+  }
+
+  /* ---------- Save ---------- */
+  async function save(mode) {          // mode: 'publish' | 'draft'
+    if (busy) return;
+    if (!sb) { setMsg('Database client not initialised. Check config.js.'); return; }
+
+    ['name', 'price'].forEach(i => $(i).classList.remove('err'));
+    const name = $('name').value.trim();
+    const price = num($('price').value);
+    if (!name) { $('name').classList.add('err'); $('name').focus(); setMsg('Product name is required.'); return; }
+    if (mode === 'publish' && price <= 0) { $('price').classList.add('err'); $('price').focus(); setMsg('Enter a retail price greater than 0.'); return; }
+
+    setBusy(true, mode); setMsg('');
+    let usedFallback = false;
+    try {
+      const sku = $('sku').value.trim();
+      const id = productId || slug(sku) || ('prod-' + Date.now());
+
+      // Block accidental overwrite of another product
+      if (!productId) {
+        const { data: clash, error: ce } = await sb.from('products').select('id').eq('id', id).limit(1);
+        if (ce) throw ce;
+        if (clash && clash.length) throw new Error('A product with this SKU already exists. Use a different SKU or edit the existing product.');
+      }
+      if (sku) {
+        const { data: dup, error: de } = await sb.from('products').select('id').eq('sku', sku).neq('id', id).limit(1);
+        if (de) throw de;
+        if (dup && dup.length) throw new Error('Another product already uses SKU "' + sku + '".');
+      }
+
+      // Image: upload to Storage (fallback: compressed inline image)
+      let imageUrl = currentImgUrl;
+      if (pendingFile) {
+        setMsg('Uploading image…', true);
+        const blob = await compressImage(pendingFile);
+        try { imageUrl = await uploadImage(blob, id); }
+        catch (upErr) {
+          console.warn('Storage upload failed, saving compressed image inline instead:', upErr);
+          imageUrl = await blobToDataURL(blob); usedFallback = true;
+        }
+      }
+
+      const status = mode === 'draft' ? 'draft' : ($('status').value === 'draft' ? 'active' : $('status').value);
+      const catVal = $('cat').value || 'skincare';
+      const featured = $('isFeatured').checked === true;
+      const inShop = $('isShop').checked === true;
+
+      const productData = {
+        id,
+        name,
+        sku,
+        brand: $('brand').value.trim() || 'Natural Essentials',
+        category_slug: catVal,
+        cat: catVal,
+        price,
+        cost: num($('cost').value),
+        stock: Math.floor(num($('stock').value)),
+        reorder_level: $('reorder').value === '' ? 20 : Math.floor(num($('reorder').value)),
+        status,
+        featured: featured,
+        is_featured: featured,
+        is_shop: inShop,
+        image_url: imageUrl,
+        img: imageUrl
+      };
+
+      const { error } = await sb.from('products').upsert(productData);
+      if (error) throw error;
+
+      $('status').value = status;
+      setMsg(mode === 'draft' ? 'Draft saved.' : 'Product saved successfully!' +
+        (usedFallback ? ' (Tip: create the "product-images" storage bucket for faster image loading.)' : ''), true);
+      setTimeout(() => { window.location.href = 'admin-products.html'; }, usedFallback ? 2500 : 900);
+    } catch (err) {
+      console.error('Save failed:', err);
+      setMsg('Error saving: ' + friendly(err));
+      setBusy(false);
+    }
+  }
+
+  $('form').addEventListener('submit', e => { e.preventDefault(); save('publish'); });
+  $('draft').addEventListener('click', () => save('draft'));
+
+  loadProductData();
+})();
+</script>
+</body>
+</html>

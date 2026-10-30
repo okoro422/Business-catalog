@@ -7,13 +7,11 @@
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Fraunces:opsz,wght@9..144,400;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
-<!-- 1. Load Supabase CDN JS Library FIRST -->
+<!-- 1. Supabase library FIRST -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
-<!-- 2. Load Configuration SECOND so window.BC_CONFIG exists -->
+<!-- 2. Config SECOND so window.BC_CONFIG exists -->
 <script src="./config.js"></script>
-
-<!-- 3. Load your Backend / Supabase logic NEXT -->
+<!-- 3. Backend logic NEXT -->
 <script src="supabase-client.js"></script>
 <script src="auth.js"></script>
 
@@ -28,30 +26,71 @@
   --font-display:'Fraunces',Georgia,serif;--font-body:'DM Sans',system-ui,sans-serif;
   --r-sm:6px;--r-md:12px;--r-lg:20px;--r-pill:999px;
   --shadow-1:0 2px 8px rgba(15,42,29,.08);--shadow-2:0 6px 18px rgba(15,42,29,.12);
-  --max:1280px;
+  --tabbar:64px;--max:1280px;
 }
 *{box-sizing:border-box;margin:0;padding:0}
 html{scroll-behavior:smooth}
 body{font-family:var(--font-body);font-size:14px;color:var(--ink-700);background:var(--bg);min-height:100vh;display:flex;flex-direction:column;line-height:1.5}
 a{color:inherit;text-decoration:none}
+img{max-width:100%;display:block}
 button{font-family:inherit}
 h1,h2,h3,h4{font-family:var(--font-display);color:var(--ink-900);line-height:1.2}
-h1{font-size:clamp(1.5rem,3vw,1.9rem)}h2{font-size:1.35rem}
+h1{font-size:clamp(1.5rem,3vw,1.9rem)}h2{font-size:1.35rem}h3{font-size:1.05rem}
 .muted{color:var(--ink-500)}.small{font-size:12px}.hidden{display:none!important}
+.text-success{color:var(--success)}.text-warning{color:var(--warning)}.text-danger{color:var(--danger)}
 .toast{position:fixed;left:50%;bottom:96px;transform:translateX(-50%);background:var(--ink-900);color:#fff;padding:10px 18px;border-radius:var(--r-pill);z-index:200;font-size:13px;box-shadow:var(--shadow-2);max-width:90vw;text-align:center}
 
-/* ---------- Layout & Elements ---------- */
+/* ---------- Shop shell ---------- */
+.announcement{background:var(--forest-900);color:#fff;text-align:center;font-size:12px;font-weight:500;padding:8px 16px}
+.site-header{background:var(--bg);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:50}
+.header-inner{max-width:var(--max);margin:0 auto;padding:12px 16px;display:flex;align-items:center;gap:16px}
+.brand{font-family:var(--font-display);font-weight:700;font-size:1.2rem;color:var(--ink-900);white-space:nowrap}
+.desktop-nav{display:none;gap:20px;font-weight:500}
+.desktop-nav a{padding:4px 0;border-bottom:2px solid transparent}
+.desktop-nav a:hover,.desktop-nav a.active{border-color:var(--forest-700);color:var(--ink-900)}
+.header-search{display:none;flex:1;position:relative;max-width:420px}
+.header-search i{position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--ink-500)}
+.header-search input{width:100%;height:40px;border-radius:var(--r-pill);border:1px solid var(--border);background:var(--cream-100);padding:0 16px 0 38px;font:inherit;outline:none}
+.header-search input:focus,.field input:focus,.field select:focus{border-color:var(--forest-700);box-shadow:0 0 0 3px var(--mint-200)}
+.header-actions{margin-left:auto;display:flex;align-items:center;gap:2px}
+.icon-link{position:relative;display:inline-flex;align-items:center;gap:6px;padding:8px 10px;border-radius:var(--r-pill);background:none;border:0;cursor:pointer;color:var(--ink-900);font:inherit;font-size:13px}
+.icon-link:hover{background:var(--cream-100)}
+.icon-link i{font-size:16px}
+.icon-link .lbl{display:none}
+.badge-dot{background:var(--forest-700);color:#fff;font-size:10px;font-weight:700;min-width:18px;height:18px;border-radius:9px;display:inline-flex;align-items:center;justify-content:center;padding:0 5px}
+.mobile-search{display:none;padding:10px 16px;border-top:1px solid var(--border);gap:8px}
+.mobile-search.open{display:flex}
+.mobile-search input{flex:1;height:40px;border-radius:var(--r-pill);border:1px solid var(--border);background:var(--cream-100);padding:0 16px;font:inherit}
 .container{width:100%;max-width:var(--max);margin:0 auto;padding:24px 16px;flex:1}
+.site-footer{border-top:1px solid var(--border);padding:24px 20px;text-align:center;font-size:12px;color:var(--ink-500)}
+.site-footer a{margin:0 8px;text-decoration:underline}
+.tabbar{position:fixed;left:0;right:0;bottom:0;height:var(--tabbar);background:#fff;border-top:1px solid var(--border);display:flex;justify-content:space-around;align-items:center;z-index:60}
+.tabbar a,.tabbar button{display:flex;flex-direction:column;align-items:center;gap:2px;font-size:11px;font-weight:500;color:var(--ink-500);flex:1;padding:6px 0;background:none;border:0;cursor:pointer}
+.tabbar i{font-size:17px}.tabbar .active{color:var(--forest-700);font-weight:700}
+body.has-tabbar{padding-bottom:var(--tabbar)}
+.sheet{position:fixed;inset:0;background:rgba(15,42,29,.5);z-index:95;display:none}
+.sheet.open{display:block}
+.sheet-panel{position:absolute;left:0;right:0;bottom:0;background:#fff;border-radius:20px 20px 0 0;padding:18px 16px calc(18px + env(safe-area-inset-bottom));max-height:82vh;overflow:auto}
+.sheet-panel h3{margin-bottom:6px}
+.sheet-panel a{display:flex;align-items:center;gap:12px;padding:14px 6px;border-bottom:1px solid var(--border);font-weight:500;color:var(--ink-900)}
+.sheet-panel a:last-child{border-bottom:0}
+.sheet-panel a i{width:20px;text-align:center;color:var(--forest-700)}
+.sheet-panel a.active{color:var(--forest-700);font-weight:700}
+
+/* ---------- Elements ---------- */
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:11px 22px;border-radius:var(--r-pill);border:1px solid var(--forest-700);background:var(--forest-700);color:#fff;font:600 14px var(--font-body);cursor:pointer;transition:.2s;text-align:center}
 .btn:hover{background:var(--forest-800)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
 .btn.outline{background:transparent;color:var(--forest-700)}.btn.outline:hover{background:var(--mint-100)}
 .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-md);padding:20px;box-shadow:var(--shadow-1)}
 .stack{display:flex;flex-direction:column;gap:16px}
 .split{display:grid;gap:24px;grid-template-columns:1fr}
 .empty{text-align:center;padding:48px 16px;color:var(--ink-500)}
+.empty h2{margin:14px 0 6px}.empty p{margin-bottom:20px}
+.empty .btn-row{justify-content:center}
 .line{display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px dashed var(--border)}
 .line:last-child{border-bottom:0}.line.total{font-weight:700;font-size:1.05rem;color:var(--ink-900)}
-.summary{position:sticky;top:90px}
+.summary{position:static}
 .cstep{display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap}
 .cstep span{padding:6px 16px;border-radius:var(--r-pill);background:var(--cream-100);border:1px solid var(--border);font-size:12px;font-weight:600;color:var(--ink-500)}
 .cstep span.active{background:var(--forest-700);color:#fff;border-color:var(--forest-700)}
@@ -70,20 +109,33 @@ h1{font-size:clamp(1.5rem,3vw,1.9rem)}h2{font-size:1.35rem}
 
 @media(min-width:640px){
   .form-grid{grid-template-columns:1fr 1fr}
+  .icon-link .lbl{display:inline}
 }
 @media(min-width:900px){
+  .desktop-nav{display:flex}.header-search{display:block}
+  .header-inner{padding:12px 32px}
+  .mobile-only{display:none!important}
+  .tabbar{display:none}body.has-tabbar{padding-bottom:0}
+  .container{padding:32px}
   .split.sidebar-right{grid-template-columns:1fr 340px;align-items:start}
+  .summary{position:sticky;top:90px}
 }
+@media(max-width:899px){.desktop-only{display:none!important}}
+@media print{.announcement,.site-header,.tabbar,.site-footer,.toast{display:none!important}}
 </style>
 </head>
-<body data-layout="shop" data-section="">
+<body data-layout="shop" data-section="cart">
 <main class="container" id="main">
+  <div id="loading" class="empty">Loading checkout…</div>
   <div id="emptyMsg" class="empty hidden">
+    <i class="fa-solid fa-cart-shopping" style="font-size:42px;color:var(--forest-700)"></i>
     <h2>Your cart is empty</h2>
-    <p style="margin:8px 0 20px">Add something before checking out.</p>
+    <p>Add something before checking out.</p>
     <a class="btn" href="shop.html">Go to shop</a>
   </div>
-  <div id="checkout">
+  <div id="gate" class="empty hidden"></div>
+
+  <div id="checkout" class="hidden">
     <div class="cstep"><span class="active">1 Delivery</span><span>2 Payment</span><span>3 Review</span></div>
     <div class="split sidebar-right">
       <form class="stack" id="form" novalidate style="gap:24px">
@@ -101,7 +153,7 @@ h1{font-size:clamp(1.5rem,3vw,1.9rem)}h2{font-size:1.35rem}
         </div>
         <p class="form-msg" id="msg" role="alert"></p>
         <div class="btn-row" style="margin:0">
-          <button class="btn" type="submit">Continue to payment →</button>
+          <button class="btn" type="submit" id="submitBtn">Continue to payment →</button>
           <a class="btn outline" href="cart.html">Back to cart</a>
         </div>
       </form>
@@ -111,138 +163,310 @@ h1{font-size:clamp(1.5rem,3vw,1.9rem)}h2{font-size:1.35rem}
 </main>
 
 <script>
-document.addEventListener('DOMContentLoaded', async () => {
-  const sb = (window.BCLive && window.BCLive.sb) || (window.supabase && typeof window.supabase.createClient === 'function' && window.BC_CONFIG ? window.supabase.createClient(window.BC_CONFIG.SUPABASE_URL, window.BC_CONFIG.SUPABASE_ANON_KEY) : null);
-  const $ = id => document.getElementById(id);
+/* ---------- Shell (header, footer, menus) ---------- */
+(function () {
+  const body = document.body;
+  const layout = body.dataset.layout || 'shop';
+  const section = body.dataset.section || '';
 
-  function toast(msg) {
-    const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg;
-    document.body.appendChild(t); setTimeout(() => t.remove(), 1800);
+  const SHOP_NAV = [['Shop', 'shop.html', 'shop'], ['Wholesale', 'wholesale.html', 'wholesale'], ['Supply request', 'supply-request.html', 'supply']];
+  const SHOP_TABS = [
+    ['Home', 'index.html', 'home', 'fa-solid fa-house'], ['Shop', 'shop.html', 'shop', 'fa-solid fa-store'],
+    ['Orders', 'my-orders.html', 'orders', 'fa-solid fa-box-archive'], ['Messages', 'chat.html', 'messages', 'fa-regular fa-comment-dots'],
+    ['Account', 'account.html', 'account', 'fa-regular fa-user']
+  ];
+  const SHOP_MENU = [
+    ['Home', 'index.html', 'fa-solid fa-house', 'home'], ['Shop', 'shop.html', 'fa-solid fa-store', 'shop'],
+    ['Wholesale', 'wholesale.html', 'fa-solid fa-boxes-stacked', 'wholesale'], ['Request a wholesale quote', 'supply-request.html', 'fa-solid fa-file-invoice', 'supply'],
+    ['My orders', 'my-orders.html', 'fa-solid fa-box-archive', 'orders'], ['My quotes', 'my-quotes.html', 'fa-solid fa-receipt', 'quotes'],
+    ['Saved items', 'wishlist.html', 'fa-regular fa-heart', 'saved'], ['Notifications', 'notifications.html', 'fa-regular fa-bell', 'notifications'],
+    ['Help & support', 'support.html', 'fa-regular fa-circle-question', 'support'], ['My account', 'account.html', 'fa-regular fa-user', 'account'],
+    ['Sign in', 'signin.html', 'fa-solid fa-right-to-bracket', ''], ['Staff portal', 'staff-login.html', 'fa-solid fa-lock', '']
+  ];
+
+  const cls = k => (k && k === section ? 'active' : '');
+  const links = arr => arr.map(([t, h, k]) => `<a href="${h}" class="${cls(k)}">${t}</a>`).join('');
+  const tabs = arr => arr.map(([t, h, k, i]) => `<a href="${h}" class="${cls(k)}"><i class="${i}"></i><span>${t}</span></a>`).join('');
+  const sheet = (id, heading, rows) => `<div class="sheet" id="sheet-${id}"><div class="sheet-panel"><h3>${heading}</h3>${rows.map(([t, h, i, k]) => `<a href="${h}" class="${cls(k)}"><i class="${i}"></i>${t}</a>`).join('')}</div></div>`;
+
+  function shopHeader() {
+    return `
+    <div class="announcement">Free delivery in Abuja over ₦50,000</div>
+    <header class="site-header">
+      <div class="header-inner">
+        <a href="index.html" class="brand">OMAK Store</a>
+        <nav class="desktop-nav">${links(SHOP_NAV)}</nav>
+        <form class="header-search" action="shop.html" method="get">
+          <i class="fa-solid fa-magnifying-glass"></i>
+          <input type="search" name="q" placeholder="Search products, brands &amp; supplies...">
+        </form>
+        <div class="header-actions">
+          <button class="icon-link mobile-only" id="searchToggle" aria-label="Search" type="button"><i class="fa-solid fa-magnifying-glass"></i></button>
+          <a class="icon-link" href="notifications.html" aria-label="Notifications"><i class="fa-regular fa-bell"></i></a>
+          <a class="icon-link" href="chat.html"><i class="fa-regular fa-comment-dots"></i><span class="lbl">Messages</span></a>
+          <a class="icon-link" href="cart.html"><i class="fa-solid fa-cart-shopping"></i><span class="lbl">Cart</span><span class="badge-dot" data-count="cart" style="display:none">0</span></a>
+          <a class="icon-link desktop-only" href="account.html"><i class="fa-regular fa-user"></i><span class="lbl">Account</span></a>
+          <button class="icon-link mobile-only" data-sheet="menu" aria-label="Menu" type="button"><i class="fa-solid fa-bars"></i></button>
+        </div>
+      </div>
+      <form class="mobile-search" id="mobileSearch" action="shop.html" method="get">
+        <input type="search" name="q" placeholder="Search products &amp; supplies...">
+        <button class="icon-link" type="button" id="searchClose" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
+      </form>
+    </header>`;
   }
 
-  const naira = n => '₦' + Math.round(n).toLocaleString('en-NG');
+  function shopFooter() {
+    return `
+    <footer class="site-footer desktop-only">
+      <a href="support.html">Help &amp; support</a><a href="my-quotes.html">My quotes</a><a href="wishlist.html">Saved items</a><a href="notifications.html">Notifications</a><a href="staff-login.html">Staff portal</a>
+      <p style="margin-top:8px">© OMAK Store · Abuja, Nigeria</p>
+    </footer>
+    <nav class="tabbar mobile-only">${tabs(SHOP_TABS)}</nav>
+    ${sheet('menu', 'Menu', SHOP_MENU)}`;
+  }
 
-  // Static delivery zones config
+  document.addEventListener('DOMContentLoaded', () => {
+    const main = document.getElementById('main');
+    if (layout === 'shop' && main) {
+      body.classList.add('has-tabbar');
+      body.insertAdjacentHTML('afterbegin', shopHeader());
+      main.insertAdjacentHTML('afterend', shopFooter());
+    }
+  });
+
+  document.addEventListener('click', e => {
+    const opener = e.target.closest('[data-sheet]');
+    if (opener) { const s = document.getElementById('sheet-' + opener.dataset.sheet); if (s) s.classList.add('open'); return; }
+    if (e.target.classList && e.target.classList.contains('sheet')) { e.target.classList.remove('open'); return; }
+    if (e.target.closest('#searchToggle')) { const b = document.getElementById('mobileSearch'); b.classList.add('open'); b.querySelector('input').focus(); return; }
+    if (e.target.closest('#searchClose')) { document.getElementById('mobileSearch').classList.remove('open'); return; }
+  });
+})();
+</script>
+
+<script>
+/* ---------- Checkout page ---------- */
+document.addEventListener('DOMContentLoaded', async () => {
+  const $ = id => document.getElementById(id);
+  const CART_KEY = 'bc_cart';
+
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const naira = n => '₦' + Math.round(n).toLocaleString('en-NG');
+  const read = (k, d) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } };
+  const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} };
+
+  function toast(msg) {
+    document.querySelectorAll('.toast').forEach(t => t.remove());
+    const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg;
+    document.body.appendChild(t); setTimeout(() => t.remove(), 2600);
+  }
+  function show(which) { ['loading', 'emptyMsg', 'gate', 'checkout'].forEach(id => $(id).classList.toggle('hidden', id !== which)); }
+  function gate(icon, title, text, buttons) {
+    $('gate').innerHTML = `<i class="fa-solid ${icon}" style="font-size:42px;color:var(--forest-700)"></i><h2>${title}</h2><p>${text}</p><div class="btn-row">${buttons}</div>`;
+    show('gate');
+  }
+
+  function getClient() {
+    if (window.BCLive && window.BCLive.sb) return window.BCLive.sb;
+    const c = window.BC_CONFIG;
+    if (!window.supabase || !c || !c.SUPABASE_URL || !c.SUPABASE_ANON_KEY || /YOUR_SUPABASE/i.test(c.SUPABASE_URL)) return null;
+    if (!window.__bcSb) window.__bcSb = window.supabase.createClient(c.SUPABASE_URL, c.SUPABASE_ANON_KEY);
+    return window.__bcSb;
+  }
+
+  /* Same cart format as shop.html / index.html / cart.html */
+  const cart = {
+    get() { return read(CART_KEY, []).map(l => l.key ? l : Object.assign({}, l, { mode: l.mode || 'single', key: l.id + '|' + (l.mode || 'single') })); },
+    save(c) { write(CART_KEY, c); refreshBadge(); }
+  };
+  function refreshBadge() {
+    const n = cart.get().length;
+    document.querySelectorAll('[data-count="cart"]').forEach(el => { el.textContent = n; el.style.display = n ? 'inline-flex' : 'none'; });
+  }
+
+  /* Product helpers (same maths as shop.html) */
+  const PUBLIC_COLS = 'id,name,sku,brand,category_slug,cat,price,stock,status,is_shop,image_url,img';
+  const tiers = p => [{ qty: 12, price: Math.round(p * .83 / 10) * 10 }, { qty: 48, price: Math.round(p * .75 / 10) * 10 }, { qty: 96, price: Math.round(p * .68 / 10) * 10 }];
+  const normalize = p => { const price = Number(p.price) || 0; return Object.assign({}, p, { price, stock: Number(p.stock) || 0, tiers: tiers(price) }); };
+  const isLive = p => !p.status || p.status === 'active';
+  const minQty = mode => (mode === 'wholesale' ? 12 : 1);
+  const priceFor = (p, qty, mode) => { if (mode !== 'wholesale') return p.price; const t = p.tiers.filter(t => qty >= t.qty).pop(); return t ? t.price : p.price; };
+
+  /* Delivery zones (static; move to the database later if you like) */
   const ZONES = {
     A: { name: 'Zone A · Inner city', short: 'Zone A', areas: ['Wuse', 'Garki', 'Maitama', 'Jabi'], fee: 1500, freeOver: 50000 },
     B: { name: 'Zone B · Mid ring', short: 'Zone B', areas: ['Gwarinpa', 'Lokogoma', 'Kado'], fee: 2500 },
     C: { name: 'Zone C · Outer', short: 'Zone C', areas: ['Kubwa', 'Lugbe', 'Nyanya'], fee: 4500 }
   };
+  const getFee = (z, sub) => { const zone = ZONES[z]; if (!zone) return 0; return zone.freeOver && sub >= zone.freeOver ? 0 : zone.fee; };
 
-  if (!sb) {
-    $('checkout').classList.add('hidden');
-    $('emptyMsg').classList.remove('hidden');
-    return;
+  let sb = null, user = null;
+  let PRODUCTS = {}, lines = [], subtotal = 0, currentZone = 'A', submitting = false;
+
+  async function loadProducts() {
+    const ids = [...new Set(cart.get().map(l => l.id))];
+    PRODUCTS = {};
+    if (!ids.length) return;
+    const run = cols => sb.from('products').select(cols).in('id', ids);
+    let r = await run(PUBLIC_COLS);
+    if (r.error) r = await run('*');
+    if (r.error) throw r.error;
+    (r.data || []).forEach(p => { PRODUCTS[String(p.id)] = normalize(p); });
   }
 
-  const { data: { user } } = await sb.auth.getUser();
-  if (!user) {
-    location.href = 'signin.html';
-    return;
+  /* Align the saved cart with live data; returns how many unavailable items were dropped */
+  function reconcile() {
+    let removed = 0, changed = false;
+    const next = [];
+    cart.get().forEach(l => {
+      const p = PRODUCTS[String(l.id)];
+      if (!p || !isLive(p)) { removed++; return; }
+      let qty = Math.max(minQty(l.mode), Number(l.qty) || 1);
+      if (p.stock > 0 && qty > p.stock) qty = Math.max(1, p.stock);
+      const price = priceFor(p, qty, l.mode);
+      if (qty !== l.qty || price !== l.price) changed = true;
+      next.push(Object.assign({}, l, { qty, price }));
+    });
+    if (removed || changed) cart.save(next);
+    return removed;
   }
-
-  // Fetch live cart items from Supabase
-  let cartItems = [];
-  try {
-    const { data, error } = await sb.from('cart_items').select('*, products(*)').eq('user_id', user.id);
-    if (error) throw error;
-    cartItems = data || [];
-  } catch (err) {
-    console.error('Error fetching cart:', err);
+  function buildLines() {
+    lines = cart.get().map(l => { const p = PRODUCTS[String(l.id)]; return p ? { l, p, out: p.stock < 1, total: l.price * l.qty } : null; }).filter(Boolean);
+    subtotal = lines.filter(x => !x.out).reduce((s, x) => s + x.total, 0);
   }
+  const signature = () => JSON.stringify(lines.map(x => [x.l.key, x.l.qty, x.l.price, x.out]));
 
-  if (!cartItems.length) {
-    $('checkout').classList.add('hidden');
-    $('emptyMsg').classList.remove('hidden');
-    return;
-  }
-
-  let subtotal = cartItems.reduce((acc, item) => {
-    const p = item.products || {};
-    const price = item.price || p.price || 0;
-    return acc + (price * item.qty);
-  }, 0);
-
-  let currentZone = 'A';
-
-  function getFee(z, sub) {
-    const zone = ZONES[z];
-    if (!zone) return 0;
-    return zone.freeOver && sub >= zone.freeOver ? 0 : zone.fee;
-  }
-
+  /* ---------- Drawing ---------- */
   function drawZones() {
     $('zones').innerHTML = Object.keys(ZONES).map(k => {
       const z = ZONES[k], f = getFee(k, subtotal);
-      return `<button type="button" class="opt ${k === currentZone ? 'active' : ''}" data-z="${k}"><span><b>${z.name}</b><span class="small muted">${z.areas.join(', ')}</span></span><b>${f ? naira(f) : 'Free'}</b></button>`;
+      return `<button type="button" class="opt ${k === currentZone ? 'active' : ''}" data-z="${k}"><span><b>${esc(z.name)}</b><span class="small muted">${esc(z.areas.join(', '))}</span></span><b>${f ? naira(f) : 'Free'}</b></button>`;
     }).join('');
   }
-
   function drawAreas(keep) {
     const a = ZONES[currentZone].areas;
-    $('area').innerHTML = '<option value="">Select area / district</option>' + a.map(x => `<option>${x}</option>`).join('');
+    $('area').innerHTML = '<option value="">Select area / district</option>' + a.map(x => `<option>${esc(x)}</option>`).join('');
     if (keep && a.includes(keep)) $('area').value = keep;
   }
-
   function drawSummary() {
     const f = getFee(currentZone, subtotal);
-    const rowsHtml = cartItems.map(item => {
-      const p = item.products || {};
-      const price = item.price || p.price || 0;
-      return `<div class="line"><span>${item.qty} × ${p.name || 'Product'}</span><strong>${naira(price * item.qty)}</strong></div>`;
-    }).join('');
-
+    const hasOut = lines.some(x => x.out);
+    const rowsHtml = lines.map(({ l, p, out, total }) =>
+      `<div class="line"><span>${l.qty} × ${esc(p.name)}${out ? ' <span class="text-danger small">(out of stock)</span>' : ''}</span><strong>${out ? '—' : naira(total)}</strong></div>`).join('');
     $('summary').innerHTML = `
       <h3 style="margin-bottom:6px">Order summary</h3>
       ${rowsHtml}
-      <div class="line"><span>Delivery · ${ZONES[currentZone].short}</span><strong>${f ? naira(f) : 'Free'}</strong></div>
-      <div class="line total"><span>Total</span><span>${naira(subtotal + f)}</span></div>`;
+      <div class="line"><span>Delivery · ${esc(ZONES[currentZone].short)}</span><strong>${f ? naira(f) : 'Free'}</strong></div>
+      <div class="line total"><span>Total</span><span>${naira(subtotal + f)}</span></div>
+      <a class="small muted" href="cart.html" style="text-decoration:underline;margin-top:6px">Edit cart</a>`;
+    $('submitBtn').disabled = hasOut || !subtotal;
+    if (hasOut) $('msg').innerHTML = 'Some items are out of stock. <a href="cart.html" style="text-decoration:underline">Go back to your cart</a> to remove them.';
+    else if ($('msg').textContent.indexOf('out of stock') > -1) $('msg').textContent = '';
   }
 
   $('zones').addEventListener('click', e => {
-    const b = e.target.closest('[data-z]');
-    if (!b) return;
-    currentZone = b.dataset.z;
-    drawZones();
-    drawAreas();
-    drawSummary();
+    const b = e.target.closest('[data-z]'); if (!b) return;
+    currentZone = b.dataset.z; drawZones(); drawAreas(); drawSummary();
   });
 
+  /* ---------- Submit ---------- */
   $('form').addEventListener('submit', async e => {
     e.preventDefault();
+    if (submitting) return;
+
     const v = {
       name: $('name').value.trim(),
       phone: $('phone').value.replace(/[\s-]/g, ''),
       area: $('area').value,
       landmark: $('landmark').value.trim(),
-      street: $('street').value.trim(),
-      zone: currentZone,
-      delivery_fee: getFee(currentZone, subtotal),
-      subtotal: subtotal,
-      total: subtotal + getFee(currentZone, subtotal)
+      street: $('street').value.trim()
     };
-
     const bad = [];
     if (v.name.length < 2) bad.push('name');
     if (!/^(\+234|234|0)[789]\d{9}$/.test(v.phone)) bad.push('phone');
     if (!v.area) bad.push('area');
     if (v.street.length < 5) bad.push('street');
-
     ['name', 'phone', 'area', 'street'].forEach(id => $(id).classList.toggle('err', bad.includes(id)));
     if (bad.length) {
-      $('msg').textContent = bad.includes('phone') && bad.length === 1 ? 'Enter a valid Nigerian phone number.' : 'Please complete the highlighted fields.';
-      $(bad[0]).focus();
-      return;
+      $('msg').textContent = bad.length === 1 && bad[0] === 'phone' ? 'Enter a valid Nigerian phone number.' : 'Please complete the highlighted fields.';
+      $(bad[0]).focus(); return;
     }
 
-    // Save checkout state directly to database or sessionStorage for payment page
-    sessionStorage.setItem('bc_checkout_payload', JSON.stringify(v));
-    location.href = 'payment.html';
+    submitting = true;
+    const btn = $('submitBtn'), label = btn.textContent;
+    btn.disabled = true; btn.textContent = 'Checking stock…'; $('msg').textContent = '';
+    try {
+      // Re-verify prices and stock right before payment
+      buildLines(); const before = signature();
+      await loadProducts(); reconcile(); buildLines();
+      if (!lines.length) { show('emptyMsg'); return; }
+      if (signature() !== before || lines.some(x => x.out)) {
+        drawZones(); drawSummary();
+        $('msg').textContent = 'Some prices or stock levels just changed. Please review your order and continue again.';
+        return;
+      }
+
+      const fee = getFee(currentZone, subtotal);
+      const e164 = v.phone.indexOf('+234') === 0 ? v.phone : v.phone.indexOf('234') === 0 ? '+' + v.phone : '+234' + v.phone.slice(1);
+      const payload = {
+        name: v.name, phone: v.phone, phone_e164: e164,
+        area: v.area, landmark: v.landmark, street: v.street,
+        zone: currentZone, zone_name: ZONES[currentZone].name,
+        delivery_fee: fee, subtotal, total: subtotal + fee,
+        user_id: user.id, email: user.email || '',
+        items: lines.map(({ l, p }) => ({ id: p.id, name: p.name, sku: p.sku || '', mode: l.mode, qty: l.qty, price: l.price }))
+      };
+      try { sessionStorage.setItem('bc_checkout_payload', JSON.stringify(payload)); } catch (err) {}
+      write('bc_checkout', payload);
+      location.href = 'payment.html';
+    } catch (err) {
+      console.error('[Checkout]', err);
+      $('msg').textContent = 'We couldn\'t verify your order. Please check your connection and try again.';
+    } finally {
+      submitting = false;
+      btn.textContent = label;
+      if (!lines.some(x => x.out) && subtotal) btn.disabled = false;
+    }
   });
 
-  drawZones();
-  drawAreas();
-  drawSummary();
+  /* ---------- Start ---------- */
+  refreshBadge();
+  if (!cart.get().length) { show('emptyMsg'); return; }
+
+  sb = getClient();
+  if (!sb) { gate('fa-triangle-exclamation', 'We couldn\'t connect', 'Your items are safe. Please try again in a moment.', '<button class="btn" type="button" onclick="location.reload()">Try again</button><a class="btn outline" href="cart.html">Back to cart</a>'); return; }
+
+  try { const { data } = await sb.auth.getUser(); user = data && data.user; } catch (err) { console.warn('[Checkout] auth check failed', err); }
+  if (!user) {
+    gate('fa-lock', 'Sign in to continue', 'Please sign in so we can attach this order to your account. Your cart will be waiting for you.',
+      '<a class="btn" href="signin.html?next=checkout.html">Sign in</a><a class="btn outline" href="cart.html">Back to cart</a>');
+    return;
+  }
+
+  try { await loadProducts(); }
+  catch (err) {
+    console.error('[Checkout]', err);
+    gate('fa-triangle-exclamation', 'We couldn\'t load your order', 'Your items are safe. Please check your connection and try again.', '<button class="btn" type="button" onclick="location.reload()">Try again</button><a class="btn outline" href="cart.html">Back to cart</a>');
+    return;
+  }
+
+  const removed = reconcile();
+  if (removed) toast(removed + (removed === 1 ? ' item is' : ' items are') + ' no longer available and was removed');
+  if (!cart.get().length) { show('emptyMsg'); return; }
+  buildLines();
+
+  // Prefill: previous entries first, then account details
+  let saved = null; try { saved = JSON.parse(sessionStorage.getItem('bc_checkout_payload') || 'null'); } catch (err) {}
+  const meta = user.user_metadata || {};
+  if (saved && ZONES[saved.zone]) currentZone = saved.zone;
+  $('name').value = (saved && saved.name) || meta.full_name || meta.name || '';
+  $('phone').value = (saved && saved.phone) || user.phone || meta.phone || '';
+  $('landmark').value = (saved && saved.landmark) || '';
+  $('street').value = (saved && saved.street) || '';
+
+  drawZones(); drawAreas(saved && saved.area); drawSummary();
+  show('checkout');
 });
 </script>
 </body>
