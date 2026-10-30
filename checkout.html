@@ -250,6 +250,7 @@ body.has-tabbar{padding-bottom:var(--tabbar)}
 document.addEventListener('DOMContentLoaded', async () => {
   const $ = id => document.getElementById(id);
   const CART_KEY = 'bc_cart';
+  const ZONES_TABLE = 'delivery_zones';   // columns: code, name, areas, fee, free_over, active
 
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const naira = n => '₦' + Math.round(n).toLocaleString('en-NG');
@@ -266,6 +267,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     $('gate').innerHTML = `<i class="fa-solid ${icon}" style="font-size:42px;color:var(--forest-700)"></i><h2>${title}</h2><p>${text}</p><div class="btn-row">${buttons}</div>`;
     show('gate');
   }
+  const RETRY = '<button class="btn" type="button" onclick="location.reload()">Try again</button><a class="btn outline" href="cart.html">Back to cart</a>';
 
   function getClient() {
     if (window.BCLive && window.BCLive.sb) return window.BCLive.sb;
@@ -293,16 +295,38 @@ document.addEventListener('DOMContentLoaded', async () => {
   const minQty = mode => (mode === 'wholesale' ? 12 : 1);
   const priceFor = (p, qty, mode) => { if (mode !== 'wholesale') return p.price; const t = p.tiers.filter(t => qty >= t.qty).pop(); return t ? t.price : p.price; };
 
-  /* Delivery zones (static; move to the database later if you like) */
-  const ZONES = {
-    A: { name: 'Zone A · Inner city', short: 'Zone A', areas: ['Wuse', 'Garki', 'Maitama', 'Jabi'], fee: 1500, freeOver: 50000 },
-    B: { name: 'Zone B · Mid ring', short: 'Zone B', areas: ['Gwarinpa', 'Lokogoma', 'Kado'], fee: 2500 },
-    C: { name: 'Zone C · Outer', short: 'Zone C', areas: ['Kubwa', 'Lugbe', 'Nyanya'], fee: 4500 }
+  /* Delivery zones from the database */
+  const toAreas = v => {
+    if (Array.isArray(v)) return v.map(x => String(x).trim()).filter(Boolean);
+    if (typeof v === 'string') {
+      const s = v.trim(); if (!s) return [];
+      if (s[0] === '[') { try { const a = JSON.parse(s); if (Array.isArray(a)) return a.map(x => String(x).trim()).filter(Boolean); } catch (e) {} }
+      return s.replace(/^\{|\}$/g, '').split(/[,\n;]/).map(x => x.replace(/^"|"$/g, '').trim()).filter(Boolean);
+    }
+    return [];
   };
-  const getFee = (z, sub) => { const zone = ZONES[z]; if (!zone) return 0; return zone.freeOver && sub >= zone.freeOver ? 0 : zone.fee; };
+  const normZone = z => ({
+    code: String(z.code == null ? '' : z.code),
+    name: z.name || ('Zone ' + z.code),
+    areas: toAreas(z.areas),
+    fee: Number(z.fee) || 0,
+    freeOver: Number(z.free_over) || 0,
+    active: !(z.active === false || z.active === 'false')
+  });
+  let ZONES = [];
+  const zoneBy = c => ZONES.find(z => z.code === c);
+  const shortName = z => String(z.name).split('·')[0].trim();
+  const areasOf = z => z.areas.length ? z.areas : [shortName(z)];
+  const getFee = (z, sub) => !z ? 0 : (z.freeOver > 0 && sub >= z.freeOver ? 0 : z.fee);
+
+  async function loadZones() {
+    const { data, error } = await sb.from(ZONES_TABLE).select('*');
+    if (error) throw error;
+    ZONES = (data || []).map(normZone).filter(z => z.active && z.code).sort((a, b) => a.code.localeCompare(b.code, undefined, { numeric: true }));
+  }
 
   let sb = null, user = null;
-  let PRODUCTS = {}, lines = [], subtotal = 0, currentZone = 'A', submitting = false;
+  let PRODUCTS = {}, lines = [], subtotal = 0, currentZone = '', submitting = false;
 
   async function loadProducts() {
     const ids = [...new Set(cart.get().map(l => l.id))];
@@ -335,29 +359,30 @@ document.addEventListener('DOMContentLoaded', async () => {
     lines = cart.get().map(l => { const p = PRODUCTS[String(l.id)]; return p ? { l, p, out: p.stock < 1, total: l.price * l.qty } : null; }).filter(Boolean);
     subtotal = lines.filter(x => !x.out).reduce((s, x) => s + x.total, 0);
   }
-  const signature = () => JSON.stringify(lines.map(x => [x.l.key, x.l.qty, x.l.price, x.out]));
+  const signature = () => JSON.stringify([lines.map(x => [x.l.key, x.l.qty, x.l.price, x.out]), getFee(zoneBy(currentZone), subtotal), ZONES.map(z => [z.code, z.fee, z.freeOver])]);
 
   /* ---------- Drawing ---------- */
   function drawZones() {
-    $('zones').innerHTML = Object.keys(ZONES).map(k => {
-      const z = ZONES[k], f = getFee(k, subtotal);
-      return `<button type="button" class="opt ${k === currentZone ? 'active' : ''}" data-z="${k}"><span><b>${esc(z.name)}</b><span class="small muted">${esc(z.areas.join(', '))}</span></span><b>${f ? naira(f) : 'Free'}</b></button>`;
+    $('zones').innerHTML = ZONES.map(z => {
+      const f = getFee(z, subtotal);
+      return `<button type="button" class="opt ${z.code === currentZone ? 'active' : ''}" data-z="${esc(z.code)}"><span><b>${esc(z.name)}</b><span class="small muted">${esc(z.areas.join(', '))}</span>${z.freeOver ? `<span class="small muted" style="display:block">Free delivery over ${naira(z.freeOver)}</span>` : ''}</span><b>${f ? naira(f) : 'Free'}</b></button>`;
     }).join('');
   }
   function drawAreas(keep) {
-    const a = ZONES[currentZone].areas;
+    const z = zoneBy(currentZone); const a = z ? areasOf(z) : [];
     $('area').innerHTML = '<option value="">Select area / district</option>' + a.map(x => `<option>${esc(x)}</option>`).join('');
     if (keep && a.includes(keep)) $('area').value = keep;
   }
   function drawSummary() {
-    const f = getFee(currentZone, subtotal);
+    const z = zoneBy(currentZone);
+    const f = getFee(z, subtotal);
     const hasOut = lines.some(x => x.out);
     const rowsHtml = lines.map(({ l, p, out, total }) =>
-      `<div class="line"><span>${l.qty} × ${esc(p.name)}${out ? ' <span class="text-danger small">(out of stock)</span>' : ''}</span><strong>${out ? '—' : naira(total)}</strong></div>`).join('');
+      `<div class="line"><span>${l.qty} × ${esc(p.name)}${l.mode === 'wholesale' ? ' · wholesale' : ''}${out ? ' <span class="text-danger small">(out of stock)</span>' : ''}</span><strong>${out ? '—' : naira(total)}</strong></div>`).join('');
     $('summary').innerHTML = `
       <h3 style="margin-bottom:6px">Order summary</h3>
       ${rowsHtml}
-      <div class="line"><span>Delivery · ${esc(ZONES[currentZone].short)}</span><strong>${f ? naira(f) : 'Free'}</strong></div>
+      <div class="line"><span>Delivery · ${esc(z ? shortName(z) : '')}</span><strong>${f ? naira(f) : 'Free'}</strong></div>
       <div class="line total"><span>Total</span><span>${naira(subtotal + f)}</span></div>
       <a class="small muted" href="cart.html" style="text-decoration:underline;margin-top:6px">Edit cart</a>`;
     $('submitBtn').disabled = hasOut || !subtotal;
@@ -397,22 +422,29 @@ document.addEventListener('DOMContentLoaded', async () => {
     const btn = $('submitBtn'), label = btn.textContent;
     btn.disabled = true; btn.textContent = 'Checking stock…'; $('msg').textContent = '';
     try {
-      // Re-verify prices and stock right before payment
+      // Re-verify prices, stock and delivery fees right before payment
       buildLines(); const before = signature();
-      await loadProducts(); reconcile(); buildLines();
+      await Promise.all([loadProducts(), loadZones()]);
+      reconcile(); buildLines();
       if (!lines.length) { show('emptyMsg'); return; }
+      if (!ZONES.length) { gate('fa-truck', 'Delivery isn\'t available right now', 'Please contact support to place your order.', '<a class="btn" href="chat.html">Contact support</a><a class="btn outline" href="cart.html">Back to cart</a>'); return; }
+      if (!zoneBy(currentZone)) {
+        currentZone = ZONES[0].code; drawZones(); drawAreas(); drawSummary();
+        $('msg').textContent = 'That delivery zone is no longer available. Please choose another.';
+        return;
+      }
       if (signature() !== before || lines.some(x => x.out)) {
-        drawZones(); drawSummary();
-        $('msg').textContent = 'Some prices or stock levels just changed. Please review your order and continue again.';
+        drawZones(); drawAreas(v.area); drawSummary();
+        $('msg').textContent = 'Some prices, stock levels or delivery fees just changed. Please review your order and continue again.';
         return;
       }
 
-      const fee = getFee(currentZone, subtotal);
+      const zone = zoneBy(currentZone), fee = getFee(zone, subtotal);
       const e164 = v.phone.indexOf('+234') === 0 ? v.phone : v.phone.indexOf('234') === 0 ? '+' + v.phone : '+234' + v.phone.slice(1);
       const payload = {
         name: v.name, phone: v.phone, phone_e164: e164,
         area: v.area, landmark: v.landmark, street: v.street,
-        zone: currentZone, zone_name: ZONES[currentZone].name,
+        zone: zone.code, zone_name: zone.name,
         delivery_fee: fee, subtotal, total: subtotal + fee,
         user_id: user.id, email: user.email || '',
         items: lines.map(({ l, p }) => ({ id: p.id, name: p.name, sku: p.sku || '', mode: l.mode, qty: l.qty, price: l.price }))
@@ -435,7 +467,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (!cart.get().length) { show('emptyMsg'); return; }
 
   sb = getClient();
-  if (!sb) { gate('fa-triangle-exclamation', 'We couldn\'t connect', 'Your items are safe. Please try again in a moment.', '<button class="btn" type="button" onclick="location.reload()">Try again</button><a class="btn outline" href="cart.html">Back to cart</a>'); return; }
+  if (!sb) { gate('fa-triangle-exclamation', 'We couldn\'t connect', 'Your items are safe. Please try again in a moment.', RETRY); return; }
 
   try { const { data } = await sb.auth.getUser(); user = data && data.user; } catch (err) { console.warn('[Checkout] auth check failed', err); }
   if (!user) {
@@ -444,10 +476,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     return;
   }
 
-  try { await loadProducts(); }
+  try { await Promise.all([loadProducts(), loadZones()]); }
   catch (err) {
     console.error('[Checkout]', err);
-    gate('fa-triangle-exclamation', 'We couldn\'t load your order', 'Your items are safe. Please check your connection and try again.', '<button class="btn" type="button" onclick="location.reload()">Try again</button><a class="btn outline" href="cart.html">Back to cart</a>');
+    gate('fa-triangle-exclamation', 'We couldn\'t load your order', 'Your items are safe. Please check your connection and try again.', RETRY);
+    return;
+  }
+  if (!ZONES.length) {
+    gate('fa-truck', 'Delivery isn\'t available right now', 'Please contact support to place your order.', '<a class="btn" href="chat.html">Contact support</a><a class="btn outline" href="cart.html">Back to cart</a>');
     return;
   }
 
@@ -459,7 +495,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Prefill: previous entries first, then account details
   let saved = null; try { saved = JSON.parse(sessionStorage.getItem('bc_checkout_payload') || 'null'); } catch (err) {}
   const meta = user.user_metadata || {};
-  if (saved && ZONES[saved.zone]) currentZone = saved.zone;
+  currentZone = (saved && zoneBy(saved.zone)) ? saved.zone : ZONES[0].code;
   $('name').value = (saved && saved.name) || meta.full_name || meta.name || '';
   $('phone').value = (saved && saved.phone) || user.phone || meta.phone || '';
   $('landmark').value = (saved && saved.landmark) || '';
