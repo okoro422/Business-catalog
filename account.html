@@ -320,9 +320,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     $('pp').value = phoneNum;
     $('pe').value = user.email || '';
 
-    // 3. Metrics counters
+    // 3. Metrics counters (Claude's fix for order count query)
+    const { count: oc } = await sb.from('orders').select('*', { count: 'exact', head: true }).eq('user_id', user.id);
+    $('mOrders').textContent = oc || 0;
+
     if (window.BC) {
-      if (typeof BC.order?.all === 'function') $('mOrders').textContent = BC.order.all().length;
       if (typeof BC.quotes?.all === 'function') $('mQuotes').textContent = BC.quotes.all().length;
       if (typeof BC.wish?.get === 'function') $('mSaved').textContent = BC.wish.get().length;
     }

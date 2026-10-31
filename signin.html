@@ -91,7 +91,7 @@ document.getElementById('signinForm').addEventListener('submit', async (e) => {
   e.preventDefault();
   
   const emailInput = document.getElementById('id').value.trim();
-  const passwordInput = document.getElementById('pw').value.trim();
+  const passwordInput = document.getElementById('pw').value;
   const msgEl = document.getElementById('msg');
   const btn = document.getElementById('submitBtn');
   
@@ -129,12 +129,11 @@ document.getElementById('signinForm').addEventListener('submit', async (e) => {
     msgEl.textContent = 'Success! Redirecting...';
 
     // 3. Smart Redirect: Owner, Admin, or Staff go straight to admin-dashboard.html
-    setTimeout(() => {
-      if (role === 'owner' || role === 'admin' || role === 'staff') {
-        window.location.href = 'admin-dashboard.html';
-      } else {
-        window.location.href = 'account.html';
-      }
+       setTimeout(() => {
+      const next = new URLSearchParams(location.search).get('next');
+      const safe = next && /^[a-z0-9._-]+\.html(\?[a-z0-9=&._%-]*)?$/i.test(next);
+      if (role === 'owner' || role === 'admin' || role === 'staff') window.location.href = 'admin-dashboard.html';
+      else window.location.href = safe ? next : 'account.html';
     }, 600);
 
   } catch (err) {

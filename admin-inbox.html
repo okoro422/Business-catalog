@@ -162,20 +162,23 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (error) throw error;
 
       // Group messages by customer/sender ID
-      const map = {};
+          const map = {};
       (messages || []).forEach(m => {
-        const key = m.customer_id || m.sender || 'general';
-        if (!map[key]) {
-          map[key] = { id: key, name: m.customer_name || 'Customer', preview: m.content || '', unread: !m.read, m: [] };
-        }
-        map[key].m.push([m.type || 'in', m.content]);
-        map[key].preview = m.content;
+        const key = m.customer_id || (m.kind === 'user' ? m.sender_id : null);
+        if (!key) return;
+        const t = map[key] || (map[key] = { id: key, name: 'Customer', preview: '', unread: false, m: [] });
+        const type = m.kind === 'note' ? 'int' : (m.kind === 'user' ? 'in' : 'out');
+        t.m.push([type, m.body || '']);
+        t.preview = m.body || '';
+        t.unread = type === 'in';
       });
-
-      threads = Object.values(map);
-      if (threads.length === 0) {
-        threads = [{ id: 'demo-1', name: 'Support Inbox', preview: 'No messages yet.', unread: false, m: [['in', 'Welcome! Customer messages will appear here.']] }];
+      const ids = Object.keys(map);
+      if (ids.length) {
+        const { data: profs } = await sb.from('profiles').select('id, full_name').in('id', ids);
+        (profs || []).forEach(p => { if (map[p.id]) map[p.id].name = p.full_name || 'Customer'; });
       }
+      threads = Object.values(map);
+      if (!threads.length) { $('list').innerHTML = '<div class="muted" style="text-align:center;padding:24px">No conversations yet.</div>'; return; }
 
       drawList();
       if (!currentCustomer && threads.length > 0) {
@@ -232,14 +235,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Save to Supabase messages table if connected
     if (sb) {
       try {
-        await sb.from('messages').insert([{
-          customer_id: currentCustomer,
-          content: val,
-          type: kind === 'out' ? 'out' : 'note',
-          sender: 'admin'
+            const { data: { user: staff } } = await sb.auth.getUser();
+        const { error } = await sb.from('messages').insert([{
+          customer_id: currentCustomer, sender_id: staff.id,
+          kind: kind === 'out' ? 'staff' : 'note', body: val
         }]);
+        if (error) throw error;
       } catch (err) {
-        console.error('Failed to send message:', err);
+       console.error('Failed to send message:', err); alert('Message not sent: ' + (err.message || err));
       }
     }
 

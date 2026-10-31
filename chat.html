@@ -28,24 +28,63 @@
   --font-display:'Fraunces',Georgia,serif;--font-body:'DM Sans',system-ui,sans-serif;
   --r-sm:6px;--r-md:12px;--r-lg:20px;--r-pill:999px;
   --shadow-1:0 2px 8px rgba(15,42,29,.08);--shadow-2:0 6px 18px rgba(15,42,29,.12);
-  --max:1280px;
+  --tabbar:64px;--max:1280px;
 }
 *{box-sizing:border-box;margin:0;padding:0}
 html{scroll-behavior:smooth}
 body{font-family:var(--font-body);font-size:14px;color:var(--ink-700);background:var(--bg);min-height:100vh;display:flex;flex-direction:column;line-height:1.5}
 a{color:inherit;text-decoration:none}
+img{max-width:100%;display:block}
 button{font-family:inherit}
 h1,h2,h3,h4{font-family:var(--font-display);color:var(--ink-900);line-height:1.2}
-.muted{color:var(--ink-500)}.small{font-size:12px}
+h1{font-size:clamp(1.5rem,3vw,1.9rem)}
+.muted{color:var(--ink-500)}.small{font-size:12px}.hidden{display:none!important}
 .text-success{color:var(--success)}
 .toast{position:fixed;left:50%;bottom:96px;transform:translateX(-50%);background:var(--ink-900);color:#fff;padding:10px 18px;border-radius:var(--r-pill);z-index:200;font-size:13px;box-shadow:var(--shadow-2);max-width:90vw;text-align:center}
+
+/* ---------- Shop shell ---------- */
+.announcement{background:var(--forest-900);color:#fff;text-align:center;font-size:12px;font-weight:500;padding:8px 16px}
+.site-header{background:var(--bg);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:50}
+.header-inner{max-width:var(--max);margin:0 auto;padding:12px 16px;display:flex;align-items:center;gap:16px}
+.brand{font-family:var(--font-display);font-weight:700;font-size:1.2rem;color:var(--ink-900);white-space:nowrap}
+.desktop-nav{display:none;gap:20px;font-weight:500}
+.desktop-nav a{padding:4px 0;border-bottom:2px solid transparent}
+.desktop-nav a:hover,.desktop-nav a.active{border-color:var(--forest-700);color:var(--ink-900)}
+.header-search{display:none;flex:1;position:relative;max-width:420px}
+.header-search i{position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--ink-500)}
+.header-search input{width:100%;height:40px;border-radius:var(--r-pill);border:1px solid var(--border);background:var(--cream-100);padding:0 16px 0 38px;font:inherit;outline:none}
+.header-actions{margin-left:auto;display:flex;align-items:center;gap:2px}
+.icon-link{position:relative;display:inline-flex;align-items:center;gap:6px;padding:8px 10px;border-radius:var(--r-pill);background:none;border:0;cursor:pointer;color:var(--ink-900);font:inherit;font-size:13px}
+.icon-link:hover{background:var(--cream-100)}
+.icon-link i{font-size:16px}
+.icon-link .lbl{display:none}
+.badge-dot{background:var(--forest-700);color:#fff;font-size:10px;font-weight:700;min-width:18px;height:18px;border-radius:9px;display:inline-flex;align-items:center;justify-content:center;padding:0 5px}
+.mobile-search{display:none;padding:10px 16px;border-top:1px solid var(--border);gap:8px}
+.mobile-search.open{display:flex}
+.mobile-search input{flex:1;height:40px;border-radius:var(--r-pill);border:1px solid var(--border);background:var(--cream-100);padding:0 16px;font:inherit}
+.site-footer{border-top:1px solid var(--border);padding:24px 20px;text-align:center;font-size:12px;color:var(--ink-500)}
+.site-footer a{margin:0 8px;text-decoration:underline}
+.tabbar{position:fixed;left:0;right:0;bottom:0;height:var(--tabbar);background:#fff;border-top:1px solid var(--border);display:flex;justify-content:space-around;align-items:center;z-index:60}
+.tabbar a,.tabbar button{display:flex;flex-direction:column;align-items:center;gap:2px;font-size:11px;font-weight:500;color:var(--ink-500);flex:1;padding:6px 0;background:none;border:0;cursor:pointer}
+.tabbar i{font-size:17px}.tabbar .active{color:var(--forest-700);font-weight:700}
+body.has-tabbar{padding-bottom:var(--tabbar)}
+
+/* Bottom sheet menu */
+.sheet{position:fixed;inset:0;background:rgba(15,42,29,.5);z-index:95;display:none}
+.sheet.open{display:block}
+.sheet-panel{position:absolute;left:0;right:0;bottom:0;background:#fff;border-radius:20px 20px 0 0;padding:18px 16px calc(18px + env(safe-area-inset-bottom));max-height:82vh;overflow:auto}
+.sheet-panel h3{margin-bottom:6px}
+.sheet-panel a{display:flex;align-items:center;gap:12px;padding:14px 6px;border-bottom:1px solid var(--border);font-weight:500;color:var(--ink-900)}
+.sheet-panel a:last-child{border-bottom:0}
+.sheet-panel a i{width:20px;text-align:center;color:var(--forest-700)}
+.sheet-panel a.active{color:var(--forest-700);font-weight:700}
 
 /* ---------- Layout & Chat Elements ---------- */
 .container{width:100%;max-width:900px;margin:0 auto;padding:24px 16px;flex:1}
 .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-md);padding:20px;box-shadow:var(--shadow-1)}
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:9px 16px;border-radius:var(--r-pill);border:1px solid var(--forest-700);background:var(--forest-700);color:#fff;font:600 13px var(--font-body);cursor:pointer;transition:.2s}
 .btn:hover{background:var(--forest-800)}
-.chat-card{display:flex;flex-direction:column;height:calc(100vh - 180px);min-height:440px;padding:0;overflow:hidden}
+.chat-card{display:flex;flex-direction:column;height:calc(100vh - 220px);min-height:440px;padding:0;overflow:hidden}
 .chat-top{display:flex;justify-content:space-between;align-items:center;padding:12px 18px;border-bottom:1px solid var(--border);font-weight:700;color:var(--ink-900)}
 .chat-log{flex:1;overflow-y:auto;padding:18px;display:flex;flex-direction:column;gap:12px}
 .chat-input{display:flex;gap:10px;padding:12px;border-top:1px solid var(--border);background:#fff;align-items:center}
@@ -54,13 +93,25 @@ h1,h2,h3,h4{font-family:var(--font-display);color:var(--ink-900);line-height:1.2
 .bubble{max-width:78%;padding:10px 14px;border-radius:16px;font-size:14px}
 .bubble.in{background:var(--cream-100);border:1px solid var(--border);align-self:flex-start;border-bottom-left-radius:4px}
 .bubble.out{background:var(--forest-700);color:#fff;align-self:flex-end;border-bottom-right-radius:4px}
+
+@media(min-width:640px){
+  .icon-link .lbl{display:inline}
+}
+@media(min-width:900px){
+  .desktop-nav{display:flex}.header-search{display:block}
+  .header-inner{padding:12px 32px}
+  .mobile-only{display:none!important}
+  .tabbar{display:none}body.has-tabbar{padding-bottom:0}
+  .container{padding:32px}
+}
+@media(max-width:899px){.desktop-only{display:none!important}}
 </style>
 </head>
 <body data-layout="shop" data-section="messages">
 <main class="container" id="main">
   <div class="card chat-card">
     <div class="chat-top">
-      <span>Support Team <span class="small text-success" style="font-weight:500;display:block">● Online</span></span>
+      <span>Support Team <span class="small muted" style="font-weight:500;display:block">We reply here as soon as we can</span></span>
       <a class="small muted" href="support.html">Help centre</a>
     </div>
     <div class="chat-log" id="log">
@@ -72,6 +123,89 @@ h1,h2,h3,h4{font-family:var(--font-display);color:var(--ink-900);line-height:1.2
     </form>
   </div>
 </main>
+
+<script>
+/* ---------- Shell (header, footer, menus) ---------- */
+(function () {
+  const body = document.body;
+  const layout = body.dataset.layout || 'shop';
+  const section = body.dataset.section || '';
+
+  const SHOP_NAV = [['Shop', 'shop.html', 'shop'], ['Wholesale', 'wholesale.html', 'wholesale'], ['Supply request', 'supply-request.html', 'supply']];
+  const SHOP_TABS = [
+    ['Home', 'index.html', 'home', 'fa-solid fa-house'], ['Shop', 'shop.html', 'shop', 'fa-solid fa-store'],
+    ['Orders', 'my-orders.html', 'orders', 'fa-solid fa-box-archive'], ['Messages', 'chat.html', 'messages', 'fa-regular fa-comment-dots'],
+    ['Account', 'account.html', 'account', 'fa-regular fa-user']
+  ];
+  const SHOP_MENU = [
+    ['Home', 'index.html', 'fa-solid fa-house', 'home'], ['Shop', 'shop.html', 'fa-solid fa-store', 'shop'],
+    ['Wholesale', 'wholesale.html', 'fa-solid fa-boxes-stacked', 'wholesale'], ['Request a wholesale quote', 'supply-request.html', 'fa-solid fa-file-invoice', 'supply'],
+    ['My orders', 'my-orders.html', 'fa-solid fa-box-archive', 'orders'], ['My quotes', 'my-quotes.html', 'fa-solid fa-receipt', 'quotes'],
+    ['Saved items', 'wishlist.html', 'fa-regular fa-heart', 'saved'], ['Notifications', 'notifications.html', 'fa-regular fa-bell', 'notifications'],
+    ['Help & support', 'support.html', 'fa-regular fa-circle-question', 'support'], ['My account', 'account.html', 'fa-regular fa-user', 'account'],
+    ['Sign in', 'signin.html', 'fa-solid fa-right-to-bracket', ''], ['Staff portal', 'staff-login.html', 'fa-solid fa-lock', '']
+  ];
+
+  const cls = k => (k && k === section ? 'active' : '');
+  const links = arr => arr.map(([t, h, k]) => `<a href="${h}" class="${cls(k)}">${t}</a>`).join('');
+  const tabs = arr => arr.map(([t, h, k, i]) => `<a href="${h}" class="${cls(k)}"><i class="${i}"></i><span>${t}</span></a>`).join('');
+  const sheet = (id, heading, rows) => `<div class="sheet" id="sheet-${id}"><div class="sheet-panel"><h3>${heading}</h3>${rows.map(([t, h, i, k]) => `<a href="${h}" class="${cls(k)}"><i class="${i}"></i>${t}</a>`).join('')}</div></div>`;
+
+  function shopHeader() {
+    return `
+    <div class="announcement">Free delivery in Abuja over ₦50,000</div>
+    <header class="site-header">
+      <div class="header-inner">
+        <a href="index.html" class="brand">OMAK Store</a>
+        <nav class="desktop-nav">${links(SHOP_NAV)}</nav>
+        <form class="header-search" action="shop.html" method="get">
+          <i class="fa-solid fa-magnifying-glass"></i>
+          <input type="search" name="q" placeholder="Search products, brands &amp; supplies...">
+        </form>
+        <div class="header-actions">
+          <button class="icon-link mobile-only" id="searchToggle" aria-label="Search" type="button"><i class="fa-solid fa-magnifying-glass"></i></button>
+          <a class="icon-link" href="notifications.html" aria-label="Notifications"><i class="fa-regular fa-bell"></i></a>
+          <a class="icon-link" href="chat.html"><i class="fa-regular fa-comment-dots"></i><span class="lbl">Messages</span></a>
+          <a class="icon-link" href="cart.html"><i class="fa-solid fa-cart-shopping"></i><span class="lbl">Cart</span><span class="badge-dot" data-count="cart" style="display:none">0</span></a>
+          <a class="icon-link desktop-only" href="account.html"><i class="fa-regular fa-user"></i><span class="lbl">Account</span></a>
+          <button class="icon-link mobile-only" data-sheet="menu" aria-label="Menu" type="button"><i class="fa-solid fa-bars"></i></button>
+        </div>
+      </div>
+      <form class="mobile-search" id="mobileSearch" action="shop.html" method="get">
+        <input type="search" name="q" placeholder="Search products &amp; supplies...">
+        <button class="icon-link" type="button" id="searchClose" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
+      </form>
+    </header>`;
+  }
+
+  function shopFooter() {
+    return `
+    <footer class="site-footer desktop-only">
+      <a href="support.html">Help &amp; support</a><a href="my-quotes.html">My quotes</a><a href="wishlist.html">Saved items</a><a href="notifications.html">Notifications</a>
+      <p style="margin-top:8px">© OMAK Store · Abuja, Nigeria</p>
+    </footer>
+    <nav class="tabbar mobile-only">${tabs(SHOP_TABS)}</nav>
+    ${sheet('menu', 'Menu', SHOP_MENU)}`;
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    const main = document.getElementById('main');
+    if (layout === 'shop' && main) {
+      body.classList.add('has-tabbar');
+      body.insertAdjacentHTML('afterbegin', shopHeader());
+      main.insertAdjacentHTML('afterend', shopFooter());
+    }
+  });
+
+  document.addEventListener('click', e => {
+    const opener = e.target.closest('[data-sheet]');
+    if (opener) { const s = document.getElementById('sheet-' + opener.dataset.sheet); if (s) s.classList.add('open'); return; }
+    if (e.target.classList && e.target.classList.contains('sheet')) { e.target.classList.remove('open'); return; }
+    if (e.target.closest('#searchToggle')) { const b = document.getElementById('mobileSearch'); b.classList.add('open'); b.querySelector('input').focus(); return; }
+    if (e.target.closest('#searchClose')) { document.getElementById('mobileSearch').classList.remove('open'); return; }
+  });
+})();
+</script>
 
 <script>
 document.addEventListener('DOMContentLoaded', async () => {
@@ -96,20 +230,19 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   const { data: { user } } = await sb.auth.getUser();
   if (!user) {
-    logEl.innerHTML = '<div class="bubble in">Please sign in to view your messages.</div>';
+    logEl.innerHTML = '<div class="bubble in">Please <a href="signin.html?next=chat.html" style="text-decoration:underline">sign in</a> to message our support team.</div>';
     return;
   }
 
   async function fetchMessages() {
     try {
-      // Query using your exact columns: sender_id, body, created_at, kind
-      const { data, error } = await sb
-        .from('messages')
-        .select('*')
-        .eq('sender_id', user.id)
+      let r = await sb.from('messages').select('*')
+        .or('customer_id.eq.' + user.id + ',sender_id.eq.' + user.id)
         .order('created_at', { ascending: true });
-
+      if (r.error) r = await sb.from('messages').select('*').eq('sender_id', user.id).order('created_at', { ascending: true });
+      const { data: all, error } = r;
       if (error) throw error;
+      const data = (all || []).filter(m => m.kind !== 'note');   // hide staff-only notes
 
       if (!data || data.length === 0) {
         logEl.innerHTML = '<div class="bubble in">Hello! How can our support team help you today?</div>';
@@ -117,7 +250,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
 
       logEl.innerHTML = data.map(m => {
-        const isOut = m.kind === 'user' || m.sender_id === user.id;
+        const isOut = m.kind === 'customer' || m.kind === 'user' || m.sender_id === user.id;
         return `<div class="bubble ${isOut ? 'out' : 'in'}">${escapeHtml(m.body || '')}</div>`;
       }).join('');
       
@@ -136,30 +269,31 @@ document.addEventListener('DOMContentLoaded', async () => {
     textEl.value = '';
 
     try {
-      // Insert using your table's exact column names
-      const { error } = await sb.from('messages').insert([{
-        sender_id: user.id,
-        kind: 'user',
-        body: bodyContent
-      }]);
-
+      const row = { sender_id: user.id, kind: 'customer', body: bodyContent, customer_id: user.id };
+      let { error } = await sb.from('messages').insert([row]);
+      if (error && /customer_id/i.test(error.message || '')) {   // column not added yet
+        delete row.customer_id;
+        ({ error } = await sb.from('messages').insert([row]));
+      }
       if (error) throw error;
       fetchMessages();
     } catch (err) {
       console.error('Error sending message:', err);
-      toast('Failed to send message.');
+      textEl.value = bodyContent;   // give the text back so nothing is lost
+      toast('Not sent: ' + (err.message || 'unknown error'));
     }
   });
 
   // Realtime subscription matching your table structure
   sb.channel('public:messages')
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, payload => {
-      if (payload.new && payload.new.sender_id === user.id) {
+      if (payload.new && (payload.new.sender_id === user.id || payload.new.customer_id === user.id)) {
         fetchMessages();
       }
     })
     .subscribe();
 
+  setInterval(fetchMessages, 20000); // backup refresh if live updates are off
   fetchMessages();
 });
 </script>

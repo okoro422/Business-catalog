@@ -113,7 +113,7 @@ tr.clickable{cursor:pointer}tr.clickable:hover{background:var(--mint-50)}
 <script>
 document.addEventListener('DOMContentLoaded', async () => {
   const $ = id => document.getElementById(id);
-  const STATUSES = ['New', 'Confirmed', 'Packed', 'Out for delivery', 'Delivered'];
+  const STATUSES = ['Placed', 'Confirmed', 'Packed', 'Out for delivery', 'Delivered'];
   let f = 'All';
   let orders = [];
 
@@ -121,6 +121,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const sb = (window.BCLive && window.BCLive.sb) || (window.supabase && typeof window.supabase.createClient === 'function' && window.BC_CONFIG ? window.supabase.createClient(window.BC_CONFIG.SUPABASE_URL, window.BC_CONFIG.SUPABASE_ANON_KEY) : null);
 
   const naira = n => '₦' + Math.round(n).toLocaleString('en-NG');
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
   function toast(msg) {
     const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg;
@@ -161,12 +162,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   function render() {
     const all = orders.map(o => ({
       id: o.id,
-      customer: o.customer_name || 'Customer',
-      phone: o.phone || '',
-      area: o.area || '',
-      zone: o.zone_code || '',
+      customer: esc(o.customer_name || 'Customer'),
+      phone: esc(o.phone || ''),
+      area: esc(o.area || ''),
+      zone: esc(o.zone_code || ''),
       total: o.total || 0,
-      status: o.status || 'New'
+      status: (o.status === 'New' ? 'Placed' : o.status) || 'Placed'
     }));
 
     // Render filter pills

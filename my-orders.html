@@ -124,7 +124,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     document.getElementById('list').innerHTML = filtered.length ? filtered.map(o => `<div class="card stack" style="gap:12px">
       <div class="row-between">
-        <div><div class="price">#${esc(o.id)}</div><div class="small muted">${date(o.date)} · ${esc(o.area || '')}</div></div>
+        <div><div class="price">#${esc(o.id.slice(0, 8))}</div><div class="small muted">${date(o.date)} · ${esc(o.area || '')}</div></div>
         ${badge(o.status)}
       </div>
       <div class="row-between">
@@ -157,10 +157,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         .from('orders')
         .select('*, items:order_items(*)')
         .eq('user_id', user.id)
-        .order('date', { ascending: false });
+        .order('created_at', { ascending: false });
 
       if (error) throw error;
-      ordersList = data || [];
+           ordersList = (data || []).map(o => Object.assign({}, o, { id: String(o.id), date: o.created_at, fee: o.delivery_fee, items: o.items || [] }));
     } catch (err) {
       console.error('Error fetching live orders:', err);
       ordersList = [];

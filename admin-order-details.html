@@ -126,8 +126,15 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   const naira = n => '₦' + Math.round(n || 0).toLocaleString('en-NG');
-  const STATUSES = ['New', 'Confirmed', 'Packed', 'Out for delivery', 'Delivered'];
-  const NEXT_MAP = { 'New': 'Confirm order', 'Confirmed': 'Mark as packed', 'Packed': 'Send out for delivery', 'Out for delivery': 'Mark as delivered' };
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  
+  const STATUSES = ['Placed', 'Confirmed', 'Packed', 'Out for delivery', 'Delivered'];
+  const NEXT_MAP = {
+    'Placed': 'Confirm order',
+    'Confirmed': 'Pack order',
+    'Packed': 'Send out delivery',
+    'Out for delivery': 'Mark delivered'
+  };
 
   if (!sb || !orderId) {
     root.innerHTML = '<div class="empty"><h2>Order ID or Database missing</h2><a class="btn" href="admin-orders.html">Back to Orders</a></div>';
@@ -145,7 +152,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // 3. Fetch staff notes and assigned rider metadata from Supabase 'order_staff_data' table
     const { data: staffData } = await sb.from('order_staff_data').select('*').eq('order_id', orderId).maybeSingle();
 
-    let currentStatus = order.status || 'New';
+    let currentStatus = (order.status === 'New' ? 'Placed' : order.status) || 'Placed';
     let internalNote = (staffData && staffData.notes) || '';
     let assignedRider = (staffData && staffData.rider) || '';
 
@@ -154,15 +161,15 @@ document.addEventListener('DOMContentLoaded', async () => {
       const itemRows = (items || []).map(i => {
         const qty = i.quantity || i.qty || 1;
         const price = i.price || (i.total ? i.total / qty : 0);
-        return `<div class="line"><span>${qty} × ${i.product_name || i.name || 'Item'}</span><strong>${naira(price * qty)}</strong></div>`;
+        return `<div class="line"><span>${qty} × ${esc(i.product_name || i.name || 'Item')}</span><strong>${naira(price * qty)}</strong></div>`;
       }).join('');
 
       root.innerHTML = `
         <div class="row-between" style="margin-bottom:16px">
-          <div><h1>Order #${order.id}</h1><p class="muted">Status: ${currentStatus}</p></div>
+          <div><h1>Order #${esc(order.id)}</h1><p class="muted">Status: ${esc(currentStatus)}</p></div>
           <a class="muted" href="admin-orders.html">← All orders</a>
         </div>
-        <div class="card"><div class="steps">${STATUSES.map((x, i) => `<span class="step ${i <= at ? 'active' : ''}">${i + 1} ${x === 'New' ? 'Placed' : x}</span>`).join('')}</div></div>
+        <div class="card"><div class="steps">${STATUSES.map((x, i) => `<span class="step ${i <= at ? 'active' : ''}">${i + 1} ${esc(x)}</span>`).join('')}</div></div>
         <div class="split sidebar-right" style="margin-top:20px">
           <div class="stack">
             <div class="card">
@@ -172,18 +179,18 @@ document.addEventListener('DOMContentLoaded', async () => {
             </div>
             <div class="card field">
               <label for="note">Internal notes</label>
-              <textarea id="note" rows="3" placeholder="Add note...">${internalNote}</textarea>
+              <textarea id="note" rows="3" placeholder="Add note...">${esc(internalNote)}</textarea>
               <button class="btn sm outline" id="saveNote" style="align-self:flex-start;margin-top:6px">Save note</button>
             </div>
             <div class="card stack" style="gap:4px">
-              <strong>${order.customer_name || order.customer || 'Customer'} · ${order.tier || 'Retail'}</strong>
-              <span>Zone ${order.zone_code || order.zone || 'A'} · ${order.area || ''}</span>
-              <span>Payment: ${order.payment_method || order.pay || 'Online'}</span>
+              <strong>${esc(order.customer_name || order.customer || 'Customer')} · ${esc(order.tier || 'Retail')}</strong>
+              <span>Zone ${esc(order.zone_code || order.zone || 'A')} · ${esc(order.area || '')}</span>
+              <span>Payment: ${esc(order.payment_method || order.pay || 'Online')}</span>
               <div class="field" style="margin-top:8px">
                 <label for="rider">Assigned Rider</label>
                 <select id="rider">
                   <option value="">Assign rider</option>
-                  ${['Musa', 'Emeka', 'Yusuf'].map(r => `<option ${assignedRider === r ? 'selected' : ''}>${r}</option>`).join('')}
+                  ${['Musa', 'Emeka', 'Yusuf'].map(r => `<option ${assignedRider === r ? 'selected' : ''}>${esc(r)}</option>`).join('')}
                 </select>
               </div>
             </div>
@@ -191,7 +198,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           <div class="stack" style="gap:12px">
             <button class="btn block" id="next" ${NEXT_MAP[currentStatus] ? '' : 'disabled'}>${NEXT_MAP[currentStatus] || 'Delivered ✓'}</button>
             <a class="btn outline block" href="admin-inbox.html">Open chat</a>
-            <a class="btn outline block" href="admin-invoice.html?id=${order.id}">View invoice</a>
+            <a class="btn outline block" href="admin-invoice.html?id=${esc(order.id)}">View invoice</a>
             <button class="btn outline block" onclick="window.print()">Print packing slip</button>
           </div>
         </div>
