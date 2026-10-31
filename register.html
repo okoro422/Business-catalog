@@ -200,7 +200,7 @@ document.getElementById('regForm').addEventListener('submit', async e => {
   submitBtn.innerHTML = '<span class="spinner"></span> Creating account...';
 
   try {
-    const formData = {
+    const data = {
       name: document.getElementById('name').value.trim(),
       phone: document.getElementById('phone').value.trim(),
       email: document.getElementById('email').value.trim(),
@@ -210,7 +210,7 @@ document.getElementById('regForm').addEventListener('submit', async e => {
       btype: accountType === 'business' ? document.getElementById('btype').value.trim() : null
     };
 
-    const res = await window.BCLive.signUp(formData);
+    const res = await window.BCLive.signUp(data);
 
     msgEl.style.color = 'var(--success)';
     msgEl.textContent = res && res.needsConfirm 
