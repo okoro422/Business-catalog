@@ -55,7 +55,7 @@ window.BCLive = {
           phone: formData.phone,
           account_type: formData.type,
           business_name: formData.bname || null,
-          business_type: formsData.btype || null
+          business_type: formData.btype || null
         }
       }
     });

@@ -131,23 +131,18 @@ body.admin-body{flex-direction:row}
         </table>
       </div>
 
-      <div><button class="btn" id="invite" type="button">Invite staff</button></div>
+      <div><button class="btn" id="invite" type="button">Grant staff access</button></div>
 
       <div class="modal-bg" id="modal">
         <form class="modal" id="form">
-          <h3>Invite staff</h3>
+          <h3>Grant staff access</h3>
           <div class="field"><label for="n">Full Name</label><input id="n" required placeholder="Enter full name"></div>
           <div class="field"><label for="e">Email Address</label><input id="e" type="email" required placeholder="staff@businesscatalog.com"></div>
           <div class="field">
-            <label for="r">Role</label>
-            <select id="r">
-              <option value="staff">Staff / Support</option>
-              <option value="warehouse">Warehouse</option>
-              <option value="admin">Manager / Admin</option>
-            </select>
+            <p class="small muted">The person must create an account on the store first. This grants staff access to that existing account.</p>
           </div>
           <div class="btn-row" style="margin:0">
-            <button class="btn" type="submit">Save profile</button>
+            <button class="btn" type="submit">Grant access</button>
             <button type="button" class="btn outline" id="cancel">Cancel</button>
           </div>
         </form>
@@ -159,6 +154,8 @@ body.admin-body{flex-direction:row}
 document.addEventListener('DOMContentLoaded', async () => {
   const $ = id => document.getElementById(id);
   const sb = (window.BCLive && window.BCLive.sb) || (window.supabase && typeof window.supabase.createClient === 'function' && window.BC_CONFIG ? window.supabase.createClient(window.BC_CONFIG.SUPABASE_URL, window.BC_CONFIG.SUPABASE_ANON_KEY) : null);
+
+  const esc = value => String(value == null ? '' : value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
   function toast(msg) {
     const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg;
@@ -172,16 +169,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
     try {
       // Fetch users with staff/owner/admin roles from 'profiles' table
-      const { data, error } = await sb.from('profiles').select('*').in('role', ['owner', 'staff', 'admin']);
+      const { data, error } = await sb.from('profiles').select('id, full_name, email, role').in('role', ['owner', 'staff']);
       if (error) throw error;
       
       const list = data || [];
       if (list.length > 0) {
         $('rows').innerHTML = list.map(m => `
           <tr>
-            <td><strong>${m.full_name || 'Staff Member'}</strong></td>
+            <td><strong>${esc(m.full_name || 'Staff Member')}</strong></td>
             <td><span class="badge">${m.role || 'staff'}</span></td>
-            <td>${m.id.substring(0, 8)}... (ID)</td>
+            <td>${esc(m.email || '—')}</td>
             <td><span class="badge">Active</span></td>
             <td>${m.role !== 'owner' ? `<button class="link-danger remove-btn" data-id="${m.id}" type="button">Demote/Remove</button>` : '<small class="muted">Owner</small>'}</td>
           </tr>
@@ -202,21 +199,29 @@ document.addEventListener('DOMContentLoaded', async () => {
     e.preventDefault();
     if (!sb) return;
     const name = $('n').value.trim();
-    const email = $('e').value.trim();
-    const role = $('r').value;
+    const email = $('e').value.trim().toLowerCase();
+    const role = 'staff';
 
     try {
-      // Create profile record in database
-      const { error } = await sb.from('profiles').insert([{ full_name: name, role: role, account_type: 'staff' }]);
+      const { data: profile, error: lookupError } = await sb
+        .from('profiles')
+        .select('id, role')
+        .eq('email', email)
+        .maybeSingle();
+      if (lookupError) throw lookupError;
+      if (!profile) throw new Error('No account found for that email. Ask them to register first.');
+      if (profile.role === 'owner') throw new Error('This account is already an owner.');
+
+      const { error } = await sb.from('profiles').update({ full_name: name, role }).eq('id', profile.id);
       if (error) throw error;
       
-      toast('Staff profile added successfully!');
+      toast('Staff access granted successfully!');
       $('modal').classList.remove('open');
       e.target.reset();
       fetchStaff();
     } catch (err) {
       console.error('Error adding staff:', err);
-      toast('Failed to add staff member.');
+      toast(err.message || 'Failed to grant staff access.');
     }
   });
 
@@ -225,7 +230,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (btn && confirm('Are you sure you want to remove this staff member?')) {
       const id = btn.dataset.id;
       try {
-        const { error } = await sb.from('profiles').update({ role: 'retail' }).eq('id', id);
+        const { error } = await sb.from('profiles').update({ role: 'customer' }).eq('id', id);
         if (error) throw error;
         toast('Staff role revoked.');
         fetchStaff();

@@ -271,21 +271,19 @@ body.has-tabbar{padding-bottom:var(--tabbar)}
   }
 
   // Only customer-safe columns (never request cost price)
-  const PUBLIC_COLS = 'id,name,sku,brand,category_slug,cat,price,stock,status,featured,is_featured,is_shop,image_url,img';
+  const PUBLIC_COLS = 'id,name,sku,brand,category_slug,price,stock,status,featured,is_bulk,image_url';
   async function fetchProducts(sb) {
     let r = await sb.from('products').select(PUBLIC_COLS + ',created_at');
     if (r.error) r = await sb.from('products').select(PUBLIC_COLS);
-    if (r.error) r = await sb.from('products').select('*');
     return r;
   }
 
   const truthy = v => v === true || v === 'true' || v === 1;
   const cleanImg = u => (typeof u === 'string' && u && u.indexOf('blob:') !== 0) ? u : '';
-  const normalize = p => { const img = cleanImg(p.image_url) || cleanImg(p.img); return Object.assign({}, p, { price: Number(p.price) || 0, stock: Number(p.stock) || 0, image_url: img, img }); };
+  const normalize = p => { const img = cleanImg(p.image_url); return Object.assign({}, p, { price: Number(p.price) || 0, stock: Number(p.stock) || 0, image_url: img, img }); };
   const isLive = p => !p.status || p.status === 'active';
   const onHome = p => {
-    const f = (p.is_featured !== null && p.is_featured !== undefined) ? p.is_featured : p.featured;
-    return f === null || f === undefined || truthy(f);   // legacy rows with no flag still show
+    return p.featured === null || p.featured === undefined || truthy(p.featured);
   };
 
   let PRODUCTS = [];

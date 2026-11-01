@@ -136,7 +136,7 @@ body.has-tabbar{padding-bottom:var(--tabbar)}
         <div class="field"><label for="btype">Business type</label><input id="btype" placeholder="Salon, spa, shop..."></div>
         <div class="field"><label for="contact">Contact person</label><input id="contact"></div>
         <div class="field"><label for="phone">Phone</label><input id="phone" type="tel"></div>
-        <div class="field"><label for="zone">Delivery zone</label><select id="zone"><option value="">Select zone</option><option>Zone A · Inner city</option><option>Zone B · Mid ring</option><option>Zone C · Outer</option></select></div>
+        <div class="field"><label for="zone">Delivery zone</label><select id="zone"><option value="">Select zone</option><option value="A">Zone A · Inner city</option><option value="B">Zone B · Mid ring</option><option value="C">Zone C · Outer</option></select></div>
         <div class="field"><label for="needed">Needed by</label><input id="needed" type="date"></div>
       </div>
       <div><h3 style="margin-bottom:10px">Items</h3><div class="stack" id="rows" style="gap:10px"></div>
@@ -219,7 +219,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   let productList = [];
   if (sb) {
     try {
-      const { data } = await sb.from('products').select('id, name');
+      const { data, error } = await sb.from('products').select('id, name').eq('status', 'active').order('name');
+      if (error) throw error;
       productList = data || [];
     } catch (err) {
       console.error('Error fetching products:', err);
@@ -228,7 +229,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   function addRow(pre) {
     const r = document.createElement('div'); r.className = 'item-row';
-    r.innerHTML = `<select class="prod"><option value="">Select product</option>${productList.map(p => `<option value="${p.id}">${p.name}</option>`).join('')}<option value="custom">Custom item…</option></select>
+    const esc = value => String(value == null ? '' : value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    r.innerHTML = `<select class="prod"><option value="">Select product</option>${productList.map(p => `<option value="${esc(p.id)}">${esc(p.name)}</option>`).join('')}<option value="custom">Custom item…</option></select>
       <select class="pack"><option>Single</option><option selected>Dozen</option><option>Carton</option></select>
       <input class="qty" type="number" min="1" value="1" aria-label="Quantity">
       <button type="button" class="link-danger rm" aria-label="Remove item">✕</button>
@@ -287,16 +289,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     btn.textContent = 'Submitting...';
 
     try {
-      const { error } = await sb.from('supply_requests').insert({
-        user_id: user.id,
-        business_name: $('biz').value.trim(),
-        business_type: $('btype').value.trim(),
-        contact_person: $('contact').value.trim(),
-        phone: $('phone').value.trim(),
-        delivery_zone: $('zone').value,
-        needed_by: $('needed').value || null,
-        items: rows,
-        status: 'In review'
+      const { error } = await sb.rpc('submit_supply_request', {
+        p_business_name: $('biz').value.trim(),
+        p_business_type: $('btype').value.trim() || null,
+        p_contact_person: $('contact').value.trim(),
+        p_phone: $('phone').value.trim(),
+        p_zone_code: $('zone').value,
+        p_needed_by: $('needed').value || null,
+        p_items: rows.map(row => ({
+          product_id: row.product === 'custom' ? null : row.product,
+          custom_description: row.product === 'custom' ? row.custom : null,
+          pack: row.pack,
+          qty: row.qty
+        }))
       });
 
       if (error) throw error;

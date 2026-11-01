@@ -1,11 +1,41 @@
-// --- Staff Login Function ---
+// --- Supabase Client Helper ---
+function getDb() {
+  return (window.BCLive && window.BCLive.sb) || window.db || window.__bcSb;
+}
+
+// --- Sign Up Function ---
+window.BCLive = window.BCLive || {};
+window.BCLive.signUp = async function(formData) {
+  const sb = getDb();
+  if (!sb) throw new Error('Database connection unavailable.');
+
+  const { data, error } = await sb.auth.signUp({
+    email: formData.email,
+    password: formData.password,
+    options: {
+      data: {
+        full_name: formData.name,
+        phone: formData.phone,
+        account_type: formData.type,
+        business_name: formData.bname || null,
+        business_type: formData.btype || null
+      }
+    }
+  });
+
+  if (error) throw error;
+  return { user: data.user, needsConfirm: !data.session };
+};
+
+// --- Staff / User Login Function ---
 async function loginStaff(email, password, redirectUrl = 'admin-dashboard.html') {
-  if (!window.db) {
+  const db = getDb();
+  if (!db) {
     alert('Database client is still initializing. Please try again.');
     return;
   }
 
-  const { data, error } = await window.db.auth.signInWithPassword({
+  const { data, error } = await db.auth.signInWithPassword({
     email: email.trim(),
     password: password.trim()
   });
@@ -16,27 +46,39 @@ async function loginStaff(email, password, redirectUrl = 'admin-dashboard.html')
   }
 
   console.log('Login successful:', data.user);
+  localStorage.removeItem('bc_cart'); // Clear cart on new login session
   window.location.href = redirectUrl;
   return true;
 }
 
 // --- Logout Function ---
 async function logoutUser(redirectUrl = 'staff-login.html') {
-  if (!window.db) return;
-  await window.db.auth.signOut();
+  const db = getDb();
+  if (!db) return;
+  localStorage.removeItem('bc_cart'); // Clear cart on logout
+  await db.auth.signOut();
   window.location.href = redirectUrl;
 }
 
 // --- Auth Guard for Protected Admin Pages ---
 async function checkAuthGuard() {
-  // Give supabase-client a brief moment to initialize window.db if needed
   setTimeout(async () => {
-    if (!window.db) return;
-    const { data: { session } } = await window.db.auth.getSession();
-    
-    // If no active session exists, kick user back to staff login page
-    if (!session) {
+    const db = getDb();
+    if (!db) return;
+    const { data: { session }, error } = await db.auth.getSession();
+    if (error || !session) {
       window.location.href = 'staff-login.html';
+      return;
+    }
+
+    const { data: profile, error: profileError } = await db
+      .from('profiles')
+      .select('role')
+      .eq('id', session.user.id)
+      .maybeSingle();
+    if (profileError || !profile || !['staff', 'owner'].includes(profile.role)) {
+      await db.auth.signOut();
+      window.location.href = 'staff-login.html?denied=1';
     }
   }, 500);
 }

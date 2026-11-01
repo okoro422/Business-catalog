@@ -80,6 +80,7 @@ h1{font-size:clamp(1.5rem,3vw,1.9rem)}
     <button type="button" class="tab" data-f="Quote ready">Quote ready</button>
     <button type="button" class="tab" data-f="In review">In review</button>
     <button type="button" class="tab" data-f="Accepted">Accepted</button>
+    <button type="button" class="tab" data-f="Declined">Declined</button>
   </div>
   <div class="stack" id="list" style="gap:12px">
     <div class="empty">Loading your quotes...</div>
@@ -147,7 +148,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      quotesList = data || [];
+      quotesList = (data || []).map(quote => Object.assign({}, quote, {
+        status: quote.status === 'Quoted' ? 'Quote ready' : (quote.status === 'New' ? 'In review' : quote.status)
+      }));
     } catch (err) {
       console.error('Error fetching live quotes:', err);
       quotesList = [];

@@ -200,6 +200,10 @@ body.admin-body{flex-direction:row}
             <input type="checkbox" id="isShop" checked>
             <span>Publish to Shop Catalog (<code>shop.html</code>)</span>
           </label>
+          <label class="check-row" for="isBulk">
+            <input type="checkbox" id="isBulk">
+            <span>Show as a bulk product</span>
+          </label>
           <p class="small muted">Only products with status "active" are visible to customers.</p>
         </div>
       </div>
@@ -384,8 +388,9 @@ body.admin-body{flex-direction:row}
       $('stock').value = data.stock != null ? data.stock : 0;
       $('reorder').value = data.reorder_level != null ? data.reorder_level : 20;
       $('status').value = data.status || 'active';
-      $('isFeatured').checked = truthy(data.is_featured) || truthy(data.featured);
-      $('isShop').checked = !(data.is_shop === false || data.is_shop === 'false');
+      $('isFeatured').checked = truthy(data.featured);
+      $('isShop').checked = data.status !== 'hidden';
+      $('isBulk').checked = truthy(data.is_bulk);
       updateTiers();
 
       const img = data.image_url || data.img || '';
@@ -438,10 +443,9 @@ body.admin-body{flex-direction:row}
         }
       }
 
-      const status = mode === 'draft' ? 'draft' : ($('status').value === 'draft' ? 'active' : $('status').value);
+      const status = mode === 'draft' ? 'draft' : ($('isShop').checked ? $('status').value : 'hidden');
       const catVal = $('cat').value || 'skincare';
       const featured = $('isFeatured').checked === true;
-      const inShop = $('isShop').checked === true;
 
       const productData = {
         id,
@@ -449,21 +453,27 @@ body.admin-body{flex-direction:row}
         sku,
         brand: $('brand').value.trim() || 'Natural Essentials',
         category_slug: catVal,
-        cat: catVal,
         price,
         cost: num($('cost').value),
         stock: Math.floor(num($('stock').value)),
         reorder_level: $('reorder').value === '' ? 20 : Math.floor(num($('reorder').value)),
         status,
-        featured: featured,
-        is_featured: featured,
-        is_shop: inShop,
-        image_url: imageUrl,
-        img: imageUrl
+        featured,
+        is_bulk: $('isBulk').checked,
+        image_url: imageUrl
       };
 
       const { error } = await sb.from('products').upsert(productData);
       if (error) throw error;
+
+      const { error: clearTiersError } = await sb.from('product_tiers').delete().eq('product_id', id);
+      if (clearTiersError) throw clearTiersError;
+      const { error: tierError } = await sb.from('product_tiers').insert([
+        { product_id: id, label: 'Dozen', min_qty: 12, price: num($('t12').value) },
+        { product_id: id, label: '48 pcs', min_qty: 48, price: num($('t48').value) },
+        { product_id: id, label: 'Carton', min_qty: 96, price: num($('t96').value) }
+      ]);
+      if (tierError) throw tierError;
 
       $('status').value = status;
       setMsg(mode === 'draft' ? 'Draft saved.' : 'Product saved successfully!' +

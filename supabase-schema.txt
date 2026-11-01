@@ -40,7 +40,8 @@ create table addresses (
 
 -- ---------- catalogue ----------
 create table categories (
-  slug text primary key, name text not null, parent_slug text references categories(slug) on delete cascade, description text
+  slug text primary key, name text not null, parent_slug text references categories(slug) on delete cascade, description text,
+  sort_order int not null default 0
 );
 create table products (
   id text primary key,                          -- e.g. 'shea-250' (used in page URLs)
@@ -49,6 +50,7 @@ create table products (
   price numeric(12,2) not null check (price >= 0),
   cost numeric(12,2), stock int not null default 0 check (stock >= 0), reorder_level int not null default 20,
   icon text default 'fa-pump-soap', image_url text, is_bulk boolean not null default false,
+  description text, ingredients text, how_to_use text,
   featured boolean not null default false,
   status text not null default 'active' check (status in ('active', 'hidden', 'draft')),
   created_at timestamptz not null default now()
@@ -113,17 +115,31 @@ create table messages (
   sender_id uuid references profiles, kind text not null default 'customer' check (kind in ('customer', 'staff', 'internal', 'system')),
   body text not null, created_at timestamptz not null default now()
 );
+create or replace function update_chat_thread_after_message() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  update chat_threads set last_message = new.body, staff_unread = (new.kind = 'customer') where id = new.thread_id;
+  return new;
+end $$;
+create trigger messages_update_chat_thread after insert on messages
+for each row execute function update_chat_thread_after_message();
 create table notifications (
   id uuid primary key default gen_random_uuid(), user_id uuid references profiles on delete cascade,
   category text, title text not null, href text, is_read boolean not null default false, created_at timestamptz not null default now()
 );
 create table activity_log (id bigint generated always as identity primary key, staff_id uuid references profiles, action text not null, item text, created_at timestamptz not null default now());
 create table settings (key text primary key, value jsonb not null);
+create table customer_notes (
+  customer_id uuid primary key references profiles on delete cascade,
+  note text not null default '',
+  updated_at timestamptz not null default now(),
+  updated_by uuid references profiles
+);
 
 -- ---------- security (Row Level Security) ----------
 do $$ declare t text; begin
   foreach t in array array['profiles','addresses','categories','products','product_tiers','delivery_zones','orders','order_items','order_requests',
-                            'supply_requests','supply_request_items','wishlist','chat_threads','messages','notifications','activity_log','settings']
+                            'supply_requests','supply_request_items','wishlist','chat_threads','messages','notifications','activity_log','settings','customer_notes']
   loop execute format('alter table %I enable row level security', t); end loop; end $$;
 
 -- public read, staff write
@@ -166,6 +182,43 @@ create policy "mark notifications read" on notifications for update using (user_
 create policy "staff notifications" on notifications for insert with check (is_staff());
 create policy "staff activity" on activity_log for all using (is_staff()) with check (is_staff());
 create policy "staff settings" on settings for all using (is_staff()) with check (is_staff());
+create policy "staff manage customer notes" on customer_notes for all using (is_staff()) with check (is_staff());
+
+create or replace function submit_supply_request(
+  p_business_name text, p_business_type text, p_contact_person text, p_phone text,
+  p_zone_code text, p_needed_by date, p_items jsonb
+) returns text language plpgsql security definer set search_path = public as $$
+declare
+  v_request_id text; v_item jsonb; v_product_id text; v_description text; v_pack text; v_qty integer;
+begin
+  if auth.uid() is null then raise exception 'Sign in before submitting a supply request'; end if;
+  if nullif(trim(coalesce(p_business_name, '')), '') is null then raise exception 'Business name is required'; end if;
+  if p_items is null or jsonb_typeof(p_items) is distinct from 'array' then raise exception 'Add at least one request item'; end if;
+  if jsonb_array_length(p_items) = 0 then raise exception 'Add at least one request item'; end if;
+
+  insert into supply_requests (user_id, business_name, business_type, contact_person, phone, zone_code, needed_by, status)
+  values (auth.uid(), trim(p_business_name), nullif(trim(coalesce(p_business_type, '')), ''),
+          nullif(trim(coalesce(p_contact_person, '')), ''), nullif(trim(coalesce(p_phone, '')), ''),
+          nullif(trim(coalesce(p_zone_code, '')), ''), p_needed_by, 'New')
+  returning id into v_request_id;
+
+  for v_item in select value from jsonb_array_elements(p_items) loop
+    v_product_id := nullif(v_item->>'product_id', '');
+    v_description := nullif(trim(coalesce(v_item->>'custom_description', '')), '');
+    v_pack := coalesce(v_item->>'pack', '');
+    v_qty := coalesce(nullif(v_item->>'qty', '')::integer, 0);
+    if v_pack not in ('Single', 'Dozen', 'Carton') or v_qty < 1 then raise exception 'Invalid supply request item'; end if;
+    if v_product_id is null then
+      if v_description is null then raise exception 'Describe each custom item'; end if;
+    elsif not exists (select 1 from products where id = v_product_id and status = 'active') then
+      raise exception 'Requested product is unavailable: %', v_product_id;
+    end if;
+    insert into supply_request_items (request_id, product_id, custom_description, pack, qty)
+    values (v_request_id, v_product_id, v_description, v_pack, v_qty);
+  end loop;
+  return v_request_id;
+end $$;
+grant execute on function submit_supply_request(text, text, text, text, text, date, jsonb) to authenticated;
 
 -- ---------- secure checkout: the SERVER works out prices, never the browser ----------
 create or replace function place_order(p_name text, p_phone text, p_zone text, p_area text, p_street text, p_landmark text, p_method text, p_items jsonb)

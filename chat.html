@@ -234,23 +234,37 @@ document.addEventListener('DOMContentLoaded', async () => {
     return;
   }
 
+  let thread = null;
+  const { data: existingThreads, error: threadError } = await sb
+    .from('chat_threads')
+    .select('id')
+    .eq('customer_id', user.id)
+    .order('created_at', { ascending: false })
+    .limit(1);
+  if (threadError) {
+    console.error('Error loading support thread:', threadError);
+    logEl.innerHTML = '<div class="bubble in">Could not load your support conversation.</div>';
+    return;
+  }
+  thread = existingThreads && existingThreads[0] || null;
+
   async function fetchMessages() {
     try {
-      let r = await sb.from('messages').select('*')
-        .or('customer_id.eq.' + user.id + ',sender_id.eq.' + user.id)
-        .order('created_at', { ascending: true });
-      if (r.error) r = await sb.from('messages').select('*').eq('sender_id', user.id).order('created_at', { ascending: true });
-      const { data: all, error } = r;
+      if (!thread) {
+        logEl.innerHTML = '<div class="bubble in">Hello! How can our support team help you today?</div>';
+        return;
+      }
+      const { data, error } = await sb.from('messages').select('*').eq('thread_id', thread.id).order('created_at', { ascending: true });
       if (error) throw error;
-      const data = (all || []).filter(m => m.kind !== 'note');   // hide staff-only notes
+      const visibleMessages = (data || []).filter(m => m.kind !== 'internal');
 
-      if (!data || data.length === 0) {
+      if (!visibleMessages.length) {
         logEl.innerHTML = '<div class="bubble in">Hello! How can our support team help you today?</div>';
         return;
       }
 
-      logEl.innerHTML = data.map(m => {
-        const isOut = m.kind === 'customer' || m.kind === 'user' || m.sender_id === user.id;
+      logEl.innerHTML = visibleMessages.map(m => {
+        const isOut = m.kind === 'customer' || m.sender_id === user.id;
         return `<div class="bubble ${isOut ? 'out' : 'in'}">${escapeHtml(m.body || '')}</div>`;
       }).join('');
       
@@ -266,16 +280,24 @@ document.addEventListener('DOMContentLoaded', async () => {
     const bodyContent = textEl.value.trim();
     if (!bodyContent) return;
 
-    textEl.value = '';
-
     try {
-      const row = { sender_id: user.id, kind: 'customer', body: bodyContent, customer_id: user.id };
-      let { error } = await sb.from('messages').insert([row]);
-      if (error && /customer_id/i.test(error.message || '')) {   // column not added yet
-        delete row.customer_id;
-        ({ error } = await sb.from('messages').insert([row]));
+      if (!thread) {
+        const { data, error } = await sb
+          .from('chat_threads')
+          .insert({ customer_id: user.id, subject: 'Support chat' })
+          .select('id')
+          .single();
+        if (error) throw error;
+        thread = data;
       }
+      const { error } = await sb.from('messages').insert({
+        thread_id: thread.id,
+        sender_id: user.id,
+        kind: 'customer',
+        body: bodyContent
+      });
       if (error) throw error;
+      textEl.value = '';
       fetchMessages();
     } catch (err) {
       console.error('Error sending message:', err);
@@ -287,7 +309,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Realtime subscription matching your table structure
   sb.channel('public:messages')
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, payload => {
-      if (payload.new && (payload.new.sender_id === user.id || payload.new.customer_id === user.id)) {
+      if (payload.new && thread && payload.new.thread_id === thread.id) {
         fetchMessages();
       }
     })

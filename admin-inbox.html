@@ -146,9 +146,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   const $ = id => document.getElementById(id);
   const sb = (window.BCLive && window.BCLive.sb) || (window.supabase && typeof window.supabase.createClient === 'function' && window.BC_CONFIG ? window.supabase.createClient(window.BC_CONFIG.SUPABASE_URL, window.BC_CONFIG.SUPABASE_ANON_KEY) : null);
 
-  const esc = s => String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   let threads = [];
-  let currentCustomer = null;
+  let currentThread = null;
 
   async function loadThreads() {
     if (!sb) {
@@ -157,32 +157,67 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     try {
-      // Fetch messages grouped/listed from supabase 'messages' table
-      const { data: messages, error } = await sb.from('messages').select('*').order('created_at', { ascending: true });
-      if (error) throw error;
+      const [threadResult, messageResult] = await Promise.all([
+        sb.from('chat_threads').select('*').order('created_at', { ascending: false }),
+        sb.from('messages').select('*').order('created_at', { ascending: true })
+      ]);
+      if (threadResult.error) throw threadResult.error;
+      if (messageResult.error) throw messageResult.error;
 
-      // Group messages by customer/sender ID
-          const map = {};
-      (messages || []).forEach(m => {
-        const key = m.customer_id || (m.kind === 'user' ? m.sender_id : null);
-        if (!key) return;
-        const t = map[key] || (map[key] = { id: key, name: 'Customer', preview: '', unread: false, m: [] });
-        const type = m.kind === 'note' ? 'int' : (m.kind === 'user' ? 'in' : 'out');
-        t.m.push([type, m.body || '']);
-        t.preview = m.body || '';
-        t.unread = type === 'in';
+      const map = {};
+      (threadResult.data || []).forEach(thread => {
+        map[thread.id] = {
+          id: thread.id,
+          customerId: thread.customer_id,
+          name: 'Customer',
+          preview: thread.last_message || '',
+          unread: !!thread.staff_unread,
+          m: []
+        };
       });
-      const ids = Object.keys(map);
-      if (ids.length) {
-        const { data: profs } = await sb.from('profiles').select('id, full_name').in('id', ids);
-        (profs || []).forEach(p => { if (map[p.id]) map[p.id].name = p.full_name || 'Customer'; });
+      (messageResult.data || []).forEach(message => {
+        const t = map[message.thread_id];
+        if (!t) return;
+        const type = message.kind === 'customer' ? 'in' : message.kind === 'internal' ? 'int' : 'out';
+        t.m.push([type, message.body || '']);
+        t.preview = message.body || t.preview;
+      });
+      const customerIds = [...new Set(Object.values(map).map(t => t.customerId).filter(Boolean))];
+      if (customerIds.length) {
+        const { data: profs, error: profileError } = await sb.from('profiles').select('id, full_name, business_name').in('id', customerIds);
+        if (profileError) throw profileError;
+        (profs || []).forEach(profile => {
+          Object.values(map).forEach(thread => {
+            if (thread.customerId === profile.id) thread.name = profile.business_name || profile.full_name || 'Customer';
+          });
+        });
       }
       threads = Object.values(map);
+      const requestedCustomer = new URLSearchParams(location.search).get('customer');
+      if (requestedCustomer && !threads.some(t => t.customerId === requestedCustomer)) {
+        const { data: thread, error: createError } = await sb
+          .from('chat_threads')
+          .insert({ customer_id: requestedCustomer, subject: 'Support chat' })
+          .select()
+          .single();
+        if (createError) throw createError;
+        const { data: profile, error: profileError } = await sb.from('profiles').select('full_name, business_name').eq('id', requestedCustomer).maybeSingle();
+        if (profileError) throw profileError;
+        threads.unshift({
+          id: thread.id,
+          customerId: thread.customer_id,
+          name: profile && (profile.business_name || profile.full_name) || 'Customer',
+          preview: '',
+          unread: false,
+          m: []
+        });
+      }
       if (!threads.length) { $('list').innerHTML = '<div class="muted" style="text-align:center;padding:24px">No conversations yet.</div>'; return; }
 
       drawList();
-      if (!currentCustomer && threads.length > 0) {
-        selectThread(threads[0].id);
+      const requestedThread = threads.find(t => t.customerId === requestedCustomer);
+      if (!currentThread && threads.length > 0) {
+        selectThread(requestedThread ? requestedThread.id : threads[0].id);
       }
     } catch (err) {
       console.error('Error loading inbox:', err);
@@ -192,7 +227,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   function drawList() {
     $('list').innerHTML = threads.map(t => `
-      <div class="thread ${t.id === currentCustomer ? 'active' : ''}" data-id="${esc(t.id)}">
+      <div class="thread ${t.id === currentThread ? 'active' : ''}" data-id="${esc(t.id)}">
         <strong>${esc(t.name)}</strong>${t.unread ? '<span class="dot"></span>' : ''}<br>
         <span class="small muted">${esc(t.preview)}</span>
       </div>
@@ -200,10 +235,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   function selectThread(id) {
-    currentCustomer = id;
+    currentThread = id;
     const t = threads.find(x => x.id === id);
     if (!t) return;
     t.unread = false;
+    sb.from('chat_threads').update({ staff_unread: false }).eq('id', id)
+      .then(({ error }) => { if (error) console.error('Could not clear unread status:', error); });
     drawList();
     $('who').textContent = t.name;
     
@@ -224,31 +261,31 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   async function sendMessage(kind) {
     const val = $('text').value.trim();
-    if (!val || !currentCustomer) return;
+    if (!val || !currentThread) return;
 
-    const t = threads.find(x => x.id === currentCustomer);
-    if (t) {
-      t.m.push([kind === 'out' ? 'out' : 'note', val]);
-      t.preview = val;
-    }
-
-    // Save to Supabase messages table if connected
-    if (sb) {
-      try {
-            const { data: { user: staff } } = await sb.auth.getUser();
-        const { error } = await sb.from('messages').insert([{
-          customer_id: currentCustomer, sender_id: staff.id,
-          kind: kind === 'out' ? 'staff' : 'note', body: val
-        }]);
-        if (error) throw error;
-      } catch (err) {
-       console.error('Failed to send message:', err); alert('Message not sent: ' + (err.message || err));
+    try {
+      const { data: { user: staff }, error: authError } = await sb.auth.getUser();
+      if (authError) throw authError;
+      if (!staff) throw new Error('Your staff session has expired. Please sign in again.');
+      const { data: message, error } = await sb.from('messages').insert({
+        thread_id: currentThread,
+        sender_id: staff.id,
+        kind: kind === 'out' ? 'staff' : 'internal',
+        body: val
+      }).select().single();
+      if (error) throw error;
+      const t = threads.find(x => x.id === currentThread);
+      if (t) {
+        t.m.push([kind === 'out' ? 'out' : 'int', message.body]);
+        t.preview = message.body;
       }
+      $('text').value = '';
+      drawList();
+      selectThread(currentThread);
+    } catch (err) {
+      console.error('Failed to send message:', err);
+      alert('Message not sent: ' + (err.message || err));
     }
-
-    $('text').value = '';
-    drawList();
-    selectThread(currentCustomer);
   }
 
   $('reply').addEventListener('click', () => sendMessage('out'));

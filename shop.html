@@ -341,11 +341,10 @@ tr:last-child td{border-bottom:0}
   }
 
   // Only customer-safe columns (never request cost price)
-  const PUBLIC_COLS = 'id,name,sku,brand,category_slug,cat,price,stock,status,featured,is_featured,is_shop,image_url,img';
+  const PUBLIC_COLS = 'id,name,sku,brand,category_slug,price,stock,status,featured,is_bulk,image_url';
   async function fetchProducts(sb) {
     let r = await sb.from('products').select(PUBLIC_COLS + ',created_at');
     if (r.error) r = await sb.from('products').select(PUBLIC_COLS);
-    if (r.error) r = await sb.from('products').select('*');
     return r;
   }
 
@@ -358,12 +357,12 @@ tr:last-child td{border-bottom:0}
   ];
   const cleanImg = u => (typeof u === 'string' && u && u.indexOf('blob:') !== 0) ? u : '';
   const normalize = p => {
-    const img = cleanImg(p.image_url) || cleanImg(p.img);
+    const img = cleanImg(p.image_url);
     const price = Number(p.price) || 0;
     return Object.assign({}, p, { price, stock: Number(p.stock) || 0, image_url: img, img, tiers: tiers(price) });
   };
   const isLive = p => !p.status || p.status === 'active';
-  const isPublished = p => !(p.is_shop === false || p.is_shop === 'false');
+  const isPublished = p => !p.status || p.status === 'active';
 
   const byId = id => LIVE.find(p => String(p.id) === String(id));
   const minQty = mode => (mode === 'wholesale' ? 12 : 1);
@@ -464,7 +463,7 @@ document.addEventListener('bc:ready', () => {
   const pass = p => inCat(p, S.cat) && (!S.q || String(p.name).toLowerCase().includes(S.q.toLowerCase())) &&
     (!S.min || p.price >= +S.min) && (!S.max || p.price <= +S.max) && (!S.stock || p.stock > 0);
 
-  const isFeat = p => { const f = (p.is_featured !== null && p.is_featured !== undefined) ? p.is_featured : p.featured; return f === true || f === 'true'; };
+  const isFeat = p => p.featured === true || p.featured === 'true';
   const when = p => (p.created_at ? Date.parse(p.created_at) || 0 : 0);
 
   const meta = p => p.stock < 1 ? '<p class="small text-danger">Out of stock</p>'

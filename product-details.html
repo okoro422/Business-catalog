@@ -239,13 +239,16 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Fetch live product from Supabase
   let p = null;
   try {
-    const { data, error } = await sb.from('products').select('*').eq('id', productId).single();
+    const { data, error } = await sb.from('products')
+      .select('id, name, sku, brand, category_slug, price, stock, status, featured, is_bulk, image_url, description, ingredients, how_to_use')
+      .eq('id', productId)
+      .single();
     if (error || !data) throw error;
     
     if (data.status && data.status !== 'active') throw new Error('unavailable');
-    const img = [data.image_url, data.img].find(u => typeof u === 'string' && u && u.indexOf('blob:') !== 0) || '';
+    const img = typeof data.image_url === 'string' && data.image_url.indexOf('blob:') !== 0 ? data.image_url : '';
     const price = Number(data.price) || 0;
-    p = Object.assign({}, data, { price, stock: Number(data.stock) || 0, img, cat: data.cat || data.category_slug, tiers: tiers(price) });
+    p = Object.assign({}, data, { price, stock: Number(data.stock) || 0, img, cat: data.category_slug, tiers: tiers(price) });
   } catch (err) {
     console.error('Error fetching product:', err);
     root.innerHTML = '<div class="empty"><h2>Product not found</h2><p style="margin:8px 0 20px">The requested item does not exist.</p><a class="btn" href="shop.html">Back to shop</a></div>';
@@ -262,7 +265,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     toiletries: ['Everyday essentials for the whole family, available in bulk for shops and salons.', 'See product packaging for the full ingredients list.', 'Use as directed on the packaging.']
   };
   
-  const text = INFO[p.cat] || INFO['toiletries'];
+  const fallbackText = INFO[p.cat] || INFO['toiletries'];
+  const text = [p.description || fallbackText[0], p.ingredients || fallbackText[1], p.how_to_use || fallbackText[2]];
   const canWholesale = (p.stock || 0) >= 12;
   let mode = 'single', qty = 1;
 

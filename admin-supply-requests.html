@@ -120,7 +120,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   try {
-    const { data, error } = await sb.from('supply_requests').select('*').order('created_at', { ascending: false });
+    const { data, error } = await sb.from('supply_requests').select('*, supply_request_items(qty)').order('created_at', { ascending: false });
     if (error) throw error;
 
     const list = data || [];
@@ -128,9 +128,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       rowsEl.innerHTML = list.map(r => `
         <tr class="clickable" data-href="admin-supply-quote.html?id=${r.id}">
           <td><strong>#${r.id}</strong></td>
-          <td>${r.business_name || 'Client'}</td>
+          <td>${String(r.business_name || 'Client').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}</td>
           <td><span class="badge">${r.status || 'New'}</span></td>
-          <td>${r.quantity || 1}</td>
+          <td>${(r.supply_request_items || []).reduce((sum, item) => sum + Number(item.qty || 0), 0)}</td>
           <td>${r.created_at ? new Date(r.created_at).toLocaleDateString() : 'Recent'}</td>
         </tr>
       `).join('');

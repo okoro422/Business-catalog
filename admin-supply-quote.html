@@ -128,6 +128,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   const naira = n => '₦' + Math.round(n).toLocaleString('en-NG');
   const num = v => +String(v).replace(/\D/g, '') || 0;
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
   if (!sb || !reqId) {
     root.innerHTML = '<div class="card" style="text-align:center;padding:40px"><h2>Request ID missing or database offline</h2><p class="muted" style="margin:10px 0 20px">Please return to the requests list and select a valid item.</p><a class="btn" href="admin-supply-requests.html">Back to requests</a></div>';
@@ -137,33 +138,53 @@ document.addEventListener('DOMContentLoaded', async () => {
   try {
     const { data: request, error } = await sb.from('supply_requests').select('*').eq('id', reqId).single();
     if (error || !request) throw (error || new Error('Request not found'));
+    const { data: requestItems, error: itemsError } = await sb
+      .from('supply_request_items')
+      .select('*')
+      .eq('request_id', reqId);
+    if (itemsError) throw itemsError;
+
+    const productIds = [...new Set((requestItems || []).map(item => item.product_id).filter(Boolean))];
+    let products = {};
+    if (productIds.length) {
+      const { data, error: productsError } = await sb.from('products').select('id, name').in('id', productIds);
+      if (productsError) throw productsError;
+      products = Object.fromEntries((data || []).map(product => [product.id, product.name]));
+    }
+    const items = (requestItems || []).map(item => Object.assign({}, item, {
+      name: item.product_id ? products[item.product_id] || 'Unavailable product' : item.custom_description || 'Custom item'
+    }));
+    if (!items.length) throw new Error('This supply request has no items.');
 
     root.innerHTML = `
       <div class="row-between" style="margin-bottom:16px">
-        <h1>Request #${request.id} · ${request.business_name || 'Client'}</h1>
+        <h1>Request #${esc(request.id)} · ${esc(request.business_name || 'Client')}</h1>
         <a class="muted" href="admin-supply-requests.html">← All requests</a>
       </div>
       <div class="card stack" style="gap:4px;margin-bottom:20px">
-        <span><strong>Client Notes / Details:</strong> ${request.details || 'Standard bulk supply order'}</span>
+        <span><strong>Contact:</strong> ${esc(request.contact_person || '—')} · ${esc(request.phone || '—')}</span>
+        <span><strong>Business type:</strong> ${esc(request.business_type || '—')}</span>
+        <span><strong>Delivery zone:</strong> ${esc(request.zone_code || '—')}</span>
+        <span><strong>Needed by:</strong> ${esc(request.needed_by || 'Not specified')}</span>
       </div>
       <div class="table-wrap">
         <table>
           <thead><tr><th>Item / Description</th><th>Qty</th><th>Unit Price (₦)</th><th>Total</th></tr></thead>
-          <tbody>
-            <tr>
-              <td>Bulk Supply Order #${request.id}</td>
-              <td>${request.quantity || 1}</td>
-              <td><input class="sel" style="width:130px;border-radius:var(--r-sm)" id="unit-price" value="${request.estimated_price || 0}" inputmode="numeric"></td>
-              <td id="line-total">₦0</td>
+          <tbody>${items.map(item => `
+            <tr data-item="${esc(item.id)}">
+              <td>${esc(item.name)} · ${esc(item.pack)}</td>
+              <td>${Number(item.qty)}</td>
+              <td><input class="sel quote-unit-price" style="width:130px;border-radius:var(--r-sm)" value="${Number(item.unit_price) || 0}" inputmode="numeric" aria-label="Unit price for ${esc(item.name)}"></td>
+              <td data-line-total>₦0</td>
             </tr>
-          </tbody>
+          `).join('')}</tbody>
         </table>
       </div>
       <div class="card stack" style="margin-top:20px">
         <div class="form-grid">
-          <div class="field"><label for="disc">Discount (₦)</label><input id="disc" inputmode="numeric" placeholder="0"></div>
-          <div class="field"><label for="del">Delivery fee (₦)</label><input id="del" inputmode="numeric" placeholder="0"></div>
-          <div class="field full"><label for="valid">Valid Until</label><input id="valid" type="date"></div>
+          <div class="field"><label for="disc">Discount (₦)</label><input id="disc" inputmode="numeric" value="${Number(request.discount) || 0}"></div>
+          <div class="field"><label for="del">Delivery fee (₦)</label><input id="del" inputmode="numeric" value="${Number(request.delivery_fee) || 0}"></div>
+          <div class="field full"><label for="valid">Valid Until</label><input id="valid" type="date" value="${esc(request.valid_until || '')}"></div>
         </div>
         <div class="line" style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px dashed var(--border)"><span>Subtotal</span><strong id="sub">₦0</strong></div>
         <div class="line total" style="display:flex;justify-content:space-between;padding:8px 0;font-weight:700;font-size:1.05rem"><span>Quote Total</span><span id="tot">₦0</span></div>
@@ -174,11 +195,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         </div>
       </div>`;
 
-    const qty = request.quantity || 1;
     function calc() {
-      const price = num(document.getElementById('unit-price').value);
-      const sub = qty * price;
-      document.getElementById('line-total').textContent = naira(sub);
+      let sub = 0;
+      document.querySelectorAll('tr[data-item]').forEach(row => {
+        const price = num(row.querySelector('.quote-unit-price').value);
+        const qty = Number(items.find(item => item.id === row.dataset.item).qty) || 0;
+        const lineTotal = qty * price;
+        sub += lineTotal;
+        row.querySelector('[data-line-total]').textContent = naira(lineTotal);
+      });
       const disc = num(document.getElementById('disc').value);
       const del = num(document.getElementById('del').value);
       const total = Math.max(0, sub - disc + del);
@@ -190,28 +215,54 @@ document.addEventListener('DOMContentLoaded', async () => {
     root.addEventListener('input', calc);
     calc();
 
-    document.getElementById('draft').onclick = () => toast('Draft saved locally');
+    async function saveItemPrices() {
+      for (const item of items) {
+        const row = root.querySelector(`tr[data-item="${item.id}"]`);
+        const { error } = await sb.from('supply_request_items')
+          .update({ unit_price: num(row.querySelector('.quote-unit-price').value) })
+          .eq('id', item.id)
+          .eq('request_id', reqId);
+        if (error) throw error;
+      }
+    }
+
+    document.getElementById('draft').onclick = async () => {
+      const button = document.getElementById('draft');
+      button.disabled = true;
+      try {
+        await saveItemPrices();
+        toast('Quote draft saved.');
+      } catch (err) {
+        console.error('Could not save quote draft:', err);
+        document.getElementById('msg').textContent = 'Could not save draft: ' + err.message;
+      } finally {
+        button.disabled = false;
+      }
+    };
 
     document.getElementById('send').onclick = async () => {
       const validDate = document.getElementById('valid').value;
       if (!validDate) { document.getElementById('msg').textContent = 'Please choose a "valid until" expiration date.'; return; }
-      
-      const finalTotal = calc();
-      
-      const { error: updateErr } = await sb.from('supply_requests').update({ 
-        status: 'Quoted', 
-        total_amount: finalTotal,
-        valid_until: validDate
-      }).eq('id', reqId);
-
-      if (updateErr) {
-        console.error(updateErr);
-        toast('Failed to update quote in Supabase.');
-        return;
+      const button = document.getElementById('send');
+      button.disabled = true;
+      try {
+        const finalTotal = calc();
+        await saveItemPrices();
+        const { error: updateErr } = await sb.from('supply_requests').update({
+          status: 'Quoted',
+          total: finalTotal,
+          discount: num(document.getElementById('disc').value),
+          delivery_fee: num(document.getElementById('del').value),
+          valid_until: validDate
+        }).eq('id', reqId);
+        if (updateErr) throw updateErr;
+        toast('Quote successfully sent and updated!');
+        setTimeout(() => location.href = 'admin-supply-requests.html', 900);
+      } catch (err) {
+        console.error('Failed to update quote:', err);
+        document.getElementById('msg').textContent = 'Failed to send quote: ' + err.message;
+        button.disabled = false;
       }
-
-      toast('Quote successfully sent and updated!');
-      setTimeout(() => location.href = 'admin-supply-requests.html', 900);
     };
 
   } catch (err) {

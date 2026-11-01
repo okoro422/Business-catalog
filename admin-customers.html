@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Activity Log — Business Catalog Admin</title>
+<title>Customers — Business Catalog Admin</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Fraunces:opsz,wght@9..144,400;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -70,23 +70,17 @@ tr:last-child td{border-bottom:0}
 }
 </style>
 </head>
-<body data-layout="admin" data-section="settings" data-title="Settings">
+<body data-layout="admin" data-section="customers" data-title="Customers">
 <main id="main">
-  <h1>Activity log</h1>
-  <div class="sub-section-links">
-    <a class="pill" href="admin-delivery-zones.html">Delivery zones</a>
-    <a class="pill" href="admin-categories.html">Categories</a>
-    <a class="pill" href="admin-staff.html">Staff</a>
-    <a class="pill active" href="admin-activity-log.html">Activity log</a>
-  </div>
-  <div class="pills" id="pills" style="margin:16px 0 0"></div>
+  <h1>Customers</h1>
+  <p class="muted" style="margin:6px 0 16px">Customer profiles registered in the store.</p>
   <div class="table-wrap" style="margin-top:16px">
     <table>
       <thead>
-        <tr><th>Time</th><th>Staff</th><th>Action</th><th>Item</th></tr>
+        <tr><th>Name</th><th>Email</th><th>Phone</th><th>Tier</th><th>Orders</th><th></th></tr>
       </thead>
       <tbody id="rows">
-        <tr><td colspan="4" class="muted" style="text-align:center;padding:20px">Loading activity log...</td></tr>
+        <tr><td colspan="6" class="muted" style="text-align:center;padding:20px">Loading customers...</td></tr>
       </tbody>
     </table>
   </div>
@@ -133,67 +127,45 @@ tr:last-child td{border-bottom:0}
 <script>
 document.addEventListener('DOMContentLoaded', async () => {
   const $ = id => document.getElementById(id);
-  let logs = [];
-  let currentFilter = 'All';
 
-  // Initialize Supabase client using your configuration
   const sb = (window.BCLive && window.BCLive.sb) || (window.supabase && typeof window.supabase.createClient === 'function' && window.BC_CONFIG ? window.supabase.createClient(window.BC_CONFIG.SUPABASE_URL, window.BC_CONFIG.SUPABASE_ANON_KEY) : null);
-
-  const esc = s => String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-
-  async function fetchLogs() {
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  async function fetchCustomers() {
     if (!sb) {
-      $('rows').innerHTML = '<tr><td colspan="4" class="muted" style="text-align:center">Database client unavailable.</td></tr>';
+      $('rows').innerHTML = '<tr><td colspan="6" class="muted" style="text-align:center">Database client unavailable.</td></tr>';
       return;
     }
     try {
-      // Query the 'activity_log' table in Supabase
-      const { data, error } = await sb.from('activity_log').select('*').order('created_at', { ascending: false });
+      const { data, error } = await sb.from('profiles').select('id, full_name, business_name, email, phone, tier, role').in('role', ['customer', 'wholesale']).order('full_name');
       if (error) throw error;
-      logs = data || [];
-      render();
+      const customers = data || [];
+      const ids = customers.map(c => c.id);
+      let ordersByCustomer = {};
+      if (ids.length) {
+        const { data: orders, error: ordersError } = await sb.from('orders').select('user_id, total, status').in('user_id', ids);
+        if (ordersError) throw ordersError;
+        (orders || []).forEach(order => {
+          if (!order.user_id || order.status === 'Cancelled') return;
+          ordersByCustomer[order.user_id] = (ordersByCustomer[order.user_id] || 0) + 1;
+        });
+      }
+      $('rows').innerHTML = customers.map(c => `
+        <tr>
+          <td><strong>${esc(c.business_name || c.full_name || 'Customer')}</strong></td>
+          <td>${esc(c.email || '—')}</td>
+          <td>${esc(c.phone || '—')}</td>
+          <td>${esc(c.tier || (c.role === 'wholesale' ? 'Wholesale' : 'Retail'))}</td>
+          <td>${ordersByCustomer[c.id] || 0}</td>
+          <td><a class="pill" href="admin-customer-details.html?id=${encodeURIComponent(c.id)}">View</a></td>
+        </tr>
+      `).join('') || '<tr><td colspan="6" class="muted" style="text-align:center;padding:24px">No customer profiles found.</td></tr>';
     } catch (err) {
-      console.error('Error fetching activity log:', err);
-      $('rows').innerHTML = '<tr><td colspan="4" class="text-danger" style="text-align:center">Failed to load activity log from database.</td></tr>';
+      console.error('Error fetching customers:', err);
+      $('rows').innerHTML = `<tr><td colspan="6" class="text-danger" style="text-align:center">Failed to load customers: ${esc(err.message)}</td></tr>`;
     }
   }
 
-  function render() {
-    // Assuming your columns are: time, staff_name (or staff), action, item (or details)
-    const formattedLogs = logs.map(l => ({
-      time: l.created_at ? new Date(l.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : (l.time || '—'),
-      staff: l.staff || l.staff_name || 'System',
-      action: l.action || 'Event',
-      item: l.item || l.details || '—'
-    }));
-
-    const actions = ['All', ...new Set(formattedLogs.map(l => l.action))];
-    
-    $('pills').innerHTML = actions.map(act => `
-      <button class="pill ${act === currentFilter ? 'active' : ''}" data-f="${esc(act)}">${esc(act)}</button>
-    `).join('');
-
-    const filtered = formattedLogs.filter(l => currentFilter === 'All' || l.action === currentFilter);
-
-    $('rows').innerHTML = filtered.map(l => `
-      <tr>
-        <td>${esc(l.time)}</td>
-        <td>${esc(l.staff)}</td>
-        <td>${esc(l.action)}</td>
-        <td>${esc(l.item)}</td>
-      </tr>
-    `).join('') || '<tr><td colspan="4" class="muted" style="text-align:center;padding:24px">No activity logs recorded yet.</td></tr>';
-  }
-
-  $('pills').addEventListener('click', e => {
-    const b = e.target.closest('.pill');
-    if (b) {
-      currentFilter = b.dataset.f;
-      render();
-    }
-  });
-
-  fetchLogs();
+  fetchCustomers();
 });
 </script>
 </body>

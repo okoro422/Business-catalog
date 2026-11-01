@@ -251,7 +251,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const role = (profile && profile.role) || 'retail';
     
-    if (role !== 'owner' && role !== 'staff' && role !== 'admin') {
+    if (role !== 'owner' && role !== 'staff') {
       alert('Access Denied. Accounts without proper privileges cannot access this portal.');
       await sb.auth.signOut();
       window.location.href = 'staff-login.html';
@@ -271,13 +271,16 @@ document.addEventListener('DOMContentLoaded', async () => {
       const { count: sCount } = await sb.from('supply_requests').select('*', { count: 'exact', head: true });
       if (sCount !== null) $('mSupply').textContent = sCount;
 
-      const { count: cCount } = await sb.from('profiles').select('*', { count: 'exact', head: true }).eq('account_type', 'retail');
+      const { count: cCount, error: customerError } = await sb.from('profiles').select('*', { count: 'exact', head: true }).in('role', ['customer', 'wholesale']);
+      if (customerError) throw customerError;
       if (cCount !== null) $('mCustomers').textContent = cCount;
 
-      const { count: pOrders } = await sb.from('orders').select('*', { count: 'exact', head: true }).eq('status', 'pending');
+      const { count: pOrders, error: orderError } = await sb.from('orders').select('*', { count: 'exact', head: true }).eq('status', 'Placed');
+      if (orderError) throw orderError;
       if (pOrders !== null) $('pendingOrdersCount').textContent = pOrders;
 
-      const { count: pQuotes } = await sb.from('supply_requests').select('*', { count: 'exact', head: true }).eq('status', 'pending');
+      const { count: pQuotes, error: quoteError } = await sb.from('supply_requests').select('*', { count: 'exact', head: true }).in('status', ['New', 'In review']);
+      if (quoteError) throw quoteError;
       if (pQuotes !== null) $('pendingQuotesCount').textContent = pQuotes;
     } catch (metricErr) {
       console.log('Metrics loading notice:', metricErr);
@@ -296,8 +299,8 @@ document.addEventListener('DOMContentLoaded', async () => {
           <tr>
             <td><strong>#${o.id.substring(0, 8)}</strong></td>
             <td>${o.customer_name || 'Customer'}</td>
-            <td>₦${Number(o.total_amount || 0).toLocaleString()}</td>
-            <td><span class="badge ${o.status === 'completed' ? '' : 'warn'}">${o.status || 'Pending'}</span></td>
+            <td>₦${Number(o.total || 0).toLocaleString()}</td>
+            <td><span class="badge ${o.status === 'Delivered' ? '' : 'warn'}">${o.status || 'Placed'}</span></td>
           </tr>
         `).join('');
       } else {

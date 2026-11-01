@@ -117,11 +117,12 @@ document.getElementById('signinForm').addEventListener('submit', async (e) => {
     if (error) throw error;
 
     // 2. Fetch role from profiles table (Fixed to match your actual schema)
-    const { data: profile } = await sb
+    const { data: profile, error: profileError } = await sb
       .from('profiles')
       .select('role')
       .eq('id', data.user.id)
       .maybeSingle();
+    if (profileError) throw profileError;
 
     const role = (profile && profile.role) || 'retail';
 
@@ -132,7 +133,7 @@ document.getElementById('signinForm').addEventListener('submit', async (e) => {
        setTimeout(() => {
       const next = new URLSearchParams(location.search).get('next');
       const safe = next && /^[a-z0-9._-]+\.html(\?[a-z0-9=&._%-]*)?$/i.test(next);
-      if (role === 'owner' || role === 'admin' || role === 'staff') window.location.href = 'admin-dashboard.html';
+      if (role === 'owner' || role === 'staff') window.location.href = 'admin-dashboard.html';
       else window.location.href = safe ? next : 'account.html';
     }, 600);
 

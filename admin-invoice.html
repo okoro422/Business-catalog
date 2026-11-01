@@ -121,6 +121,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   const naira = n => '₦' + Math.round(n || 0).toLocaleString('en-NG');
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
   if (!sb || !orderId) {
     root.innerHTML = '<div class="empty"><h2>Order ID or Database missing</h2><a class="btn" href="admin-orders.html">Back to Orders</a></div>';
@@ -139,16 +140,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     const fee = order.delivery_fee || order.fee || 0;
     const total = order.total || 0;
     const tableRows = (items || []).map(i => {
-      const qty = i.quantity || i.qty || 1;
-      const unitPrice = i.price || (i.total ? i.total / qty : 0);
-      return `<tr><td>${i.product_name || i.name || 'Item'}</td><td>${qty}</td><td>${naira(unitPrice)}</td><td>${naira(unitPrice * qty)}</td></tr>`;
+      const qty = i.qty || 1;
+      const unitPrice = i.unit_price || 0;
+      const lineTotal = i.line_total != null ? i.line_total : unitPrice * qty;
+      return `<tr><td>${esc(i.name || 'Item')}</td><td>${qty}</td><td>${naira(unitPrice)}</td><td>${naira(lineTotal)}</td></tr>`;
     });
 
     root.innerHTML = `
       <div class="row-between">
         <div>
-          <h1>Invoice INV-${order.id}</h1>
-          <p class="muted">${order.customer_name || order.customer || 'Customer'} · due in 14 days · <a href="admin-order-details.html?id=${order.id}" style="text-decoration:underline">Order #${order.id}</a></p>
+          <h1>Invoice INV-${esc(order.id)}</h1>
+          <p class="muted">${esc(order.customer_name || order.customer || 'Customer')} · due in 14 days · <a href="admin-order-details.html?id=${encodeURIComponent(order.id)}" style="text-decoration:underline">Order #${esc(order.id)}</a></p>
         </div>
         <a class="muted" href="admin-orders.html">← All orders</a>
       </div>
@@ -171,15 +173,39 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     document.getElementById('sendChatBtn').addEventListener('click', async () => {
       try {
-        await sb.from('messages').insert([{
-          customer_id: order.customer_id || order.customer,
-          content: `Invoice INV-${order.id} amounting to ${naira(total)} has been generated and sent.`,
-          type: 'out',
-          sender: 'admin'
-        }]);
+        if (!order.user_id) throw new Error('This order is not linked to a customer account.');
+        const { data: { user: staff }, error: authError } = await sb.auth.getUser();
+        if (authError) throw authError;
+        if (!staff) throw new Error('Your staff session has expired. Please sign in again.');
+
+        let { data: thread, error: threadError } = await sb
+          .from('chat_threads')
+          .select('id')
+          .eq('customer_id', order.user_id)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (threadError) throw threadError;
+        if (!thread) {
+          const result = await sb.from('chat_threads')
+            .insert({ customer_id: order.user_id, subject: 'Support chat' })
+            .select('id')
+            .single();
+          if (result.error) throw result.error;
+          thread = result.data;
+        }
+
+        const { error } = await sb.from('messages').insert({
+          thread_id: thread.id,
+          sender_id: staff.id,
+          kind: 'staff',
+          body: `Invoice INV-${order.id} amounting to ${naira(total)} has been generated and sent.`
+        });
+        if (error) throw error;
         toast('Invoice sent in chat successfully!');
       } catch (err) {
-        toast('Failed to send invoice in chat');
+        console.error('Failed to send invoice in chat:', err);
+        toast('Failed to send invoice: ' + (err.message || 'unknown error'));
       }
     });
 

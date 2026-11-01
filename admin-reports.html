@@ -164,9 +164,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       const [ordRes, prodRes, custRes] = await Promise.all([
         sb.from('orders').select('*').order('created_at', { ascending: false }),
         sb.from('products').select('*'),
-        sb.from('profiles').select('*')
+        sb.from('profiles').select('*').in('role', ['customer', 'wholesale'])
       ]);
 
+      if (ordRes.error) throw ordRes.error;
+      if (prodRes.error) throw prodRes.error;
+      if (custRes.error) throw custRes.error;
       orders = ordRes.data || [];
       products = prodRes.data || [];
       customers = custRes.data || [];
@@ -222,12 +225,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     } else if (currentTab === 'Customers') {
       $('chartCard').classList.add('hidden');
-      $('thead').innerHTML = '<tr><th>Name</th><th>Email / ID</th><th>Account Type</th></tr>';
+      $('thead').innerHTML = '<tr><th>Name</th><th>Email / ID</th><th>Tier</th></tr>';
       $('tbody').innerHTML = customers.map(c => `
         <tr>
           <td><strong>${c.full_name || 'Customer'}</strong></td>
           <td>${c.id.substring(0, 8)}...</td>
-          <td>${c.account_type || 'retail'}</td>
+          <td>${c.tier || (c.role === 'wholesale' ? 'Wholesale' : 'Retail')}</td>
         </tr>
       `).join('') || '<tr><td colspan="3" class="muted" style="text-align:center;padding:20px">No customers registered yet.</td></tr>';
 

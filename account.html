@@ -340,12 +340,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       const newPhone = $('pp').value.trim();
 
       try {
-        const { error } = await sb.from('profiles').upsert({
-          id: user.id,
+        const { error } = await sb.from('profiles').update({
           full_name: newName,
-          phone: newPhone,
-          updated_at: new Date().toISOString()
-        });
+          phone: newPhone
+        }).eq('id', user.id);
 
         if (error) throw error;
         notify('Profile updated successfully!');
@@ -421,17 +419,30 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       if (defBtn) {
         const id = defBtn.dataset.def;
-        await sb.from('addresses').update({ is_default: false }).eq('user_id', user.id);
-        await sb.from('addresses').update({ is_default: true }).eq('id', id);
-        notify('Default address updated');
-        await fetchAddresses();
+        try {
+          const { error: clearError } = await sb.from('addresses').update({ is_default: false }).eq('user_id', user.id);
+          if (clearError) throw clearError;
+          const { error: setError } = await sb.from('addresses').update({ is_default: true }).eq('id', id).eq('user_id', user.id);
+          if (setError) throw setError;
+          notify('Default address updated');
+          await fetchAddresses();
+        } catch (err) {
+          console.error('Could not update default address:', err);
+          alert('Could not update default address: ' + err.message);
+        }
       }
 
       if (delBtn) {
         const id = delBtn.dataset.del;
-        await sb.from('addresses').delete().eq('id', id);
-        notify('Address removed');
-        await fetchAddresses();
+        try {
+          const { error } = await sb.from('addresses').delete().eq('id', id).eq('user_id', user.id);
+          if (error) throw error;
+          notify('Address removed');
+          await fetchAddresses();
+        } catch (err) {
+          console.error('Could not remove address:', err);
+          alert('Could not remove address: ' + err.message);
+        }
       }
     });
 

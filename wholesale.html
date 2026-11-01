@@ -434,7 +434,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   let products = [];
   try {
     if (sb) {
-      const { data } = await sb.from('products').select('*').eq('bulk', true).limit(4);
+      const { data, error } = await sb.from('products').select('id, name, price, image_url, is_bulk, status').eq('is_bulk', true).eq('status', 'active').limit(4);
+      if (error) throw error;
       products = data || [];
     }
   } catch (err) {

@@ -110,13 +110,17 @@ document.getElementById('staffForm').addEventListener('submit', async (e) => {
     // 2. Check profile role in database
     const { data: profile, error: profError } = await sb
       .from('profiles')
-      .select('account_type, role')
+      .select('role')
       .eq('id', data.user.id)
       .maybeSingle();
 
-    const role = (profile && (profile.role || profile.account_type)) || 'retail';
+    if (profError) {
+      await sb.auth.signOut();
+      throw profError;
+    }
+    const role = profile && profile.role;
 
-    if (role !== 'staff' && role !== 'admin') {
+    if (!profile || (role !== 'staff' && role !== 'owner')) {
       // Reject non-staff accounts and sign out
       await sb.auth.signOut();
       throw new Error('Access denied. This account does not have staff permissions.');

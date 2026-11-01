@@ -276,7 +276,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   /* Product + zone helpers (same maths as shop.html and checkout.html) */
-  const PUBLIC_COLS = 'id,name,sku,brand,category_slug,cat,price,stock,status,is_shop,image_url,img';
+  const PUBLIC_COLS = 'id,name,sku,brand,category_slug,price,stock,status,image_url';
   const tiers = p => [{ qty: 12, price: Math.round(p * .83 / 10) * 10 }, { qty: 48, price: Math.round(p * .75 / 10) * 10 }, { qty: 96, price: Math.round(p * .68 / 10) * 10 }];
   const normalize = p => { const price = Number(p.price) || 0; return Object.assign({}, p, { price, stock: Number(p.stock) || 0, tiers: tiers(price) }); };
   const isLive = p => !p.status || p.status === 'active';
@@ -302,7 +302,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!ids.length) return;
     const run = cols => sb.from('products').select(cols).in('id', ids);
     let r = await run(PUBLIC_COLS);
-    if (r.error) r = await run('*');
     if (r.error) throw r.error;
     (r.data || []).forEach(p => { PRODUCTS[String(p.id)] = normalize(p); });
   }
@@ -330,18 +329,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     subtotal = lines.reduce((s, x) => s + x.total, 0);
     fee = getFee(zone, subtotal);
     total = subtotal + fee;
-  }
-
-  /* One reference per order attempt, so a retry can never create a duplicate order */
-  function orderRef() {
-    const sig = JSON.stringify([lines.map(x => [x.l.id, x.l.qty, x.l.mode]), zone.code, method]);
-    let h = 0; for (let i = 0; i < sig.length; i++) h = (h * 31 + sig.charCodeAt(i)) | 0;
-    let base = sget('bc_order_ref');
-    if (!base) {
-      base = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : (Date.now() + '-' + Math.random().toString(36).slice(2));
-      sset('bc_order_ref', base);
-    }
-    return base + '-' + (h >>> 0).toString(36);
   }
 
   /* ---------- Drawing ---------- */
@@ -403,8 +390,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       console.error('[Payment] place_order() is missing in Supabase. Run the order setup SQL.');
       return 'Ordering isn\'t fully set up yet. Please contact support.';
     }
-    if (/failed to fetch|networkerror|load failed/i.test(m)) return 'Network problem. Your order was not placed. Please check your connection and try again.';
-    return 'We couldn\'t place your order. Please try again.';
+   if (/failed to fetch|networkerror|load failed/i.test(m)) return 'Network problem. Your order was not placed. Please check your connection and try again.';
+    return 'We couldn\'t place your order: ' + esc(m || 'Unknown database error');
   }
 
   $('place').addEventListener('click', async () => {
@@ -414,26 +401,26 @@ document.addEventListener('DOMContentLoaded', async () => {
     btn.disabled = true; btn.textContent = 'Placing order…'; $('placeMsg').textContent = '';
     try {
       const { data, error } = await sb.rpc('place_order', {
-        p_items: lines.map(({ l }) => ({ id: String(l.id), qty: l.qty, mode: l.mode })),
-        p_zone_code: zone.code,
+        p_items: lines.map(({ l }) => ({ product_id: String(l.id), qty: l.qty, mode: l.mode })),
+        p_zone: zone.code,
         p_name: info.name,
         p_phone: info.phone,
         p_area: info.area,
         p_street: info.street,
-        p_landmark: info.landmark || '',
-        p_method: method,
-        p_client_ref: orderRef()
+        p_landmark: info.landmark || null,
+        p_method: method
       });
       if (error) throw error;
-      if (!data || !data.id) throw new Error('No order returned');
+      const orderId = typeof data === 'string' ? data : data && data.id;
+      if (!orderId) throw new Error('No order returned');
 
       // Success: remember the order, empty the cart, clear checkout state
-      sset('bc_last_order_id', String(data.id));
-      write('bc_last_order', data);
+      sset('bc_last_order_id', String(orderId));
+      write('bc_last_order', { id: String(orderId) });
       cart.save([]);
       sdel('bc_checkout_payload'); sdel('bc_pay_method'); sdel('bc_order_ref');
       try { localStorage.removeItem('bc_checkout'); } catch (e) {}
-      location.href = 'receipt.html?id=' + encodeURIComponent(data.id);
+      location.href = 'receipt.html?id=' + encodeURIComponent(orderId);
     } catch (err) {
       console.error('[Payment] Order failed:', err);
       $('placeMsg').innerHTML = explain(err);

@@ -242,21 +242,19 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (user) {
           const { data, error } = await sb
             .from('wishlist')
-            .select('id, product_id, products(*)')
+            .select('product_id, products(id, name, price, stock, status, image_url)')
             .eq('user_id', user.id);
-          if (!error && data) {
-            savedItems = data.map(w => ({ wishId: w.id, ...w.products })).filter(Boolean);
-            render();
-            return;
-          }
+          if (error) throw error;
+          savedItems = (data || []).map(w => Object.assign({ wishId: w.product_id }, w.products || {})).filter(p => p.id);
+          render();
+          return;
         }
       }
     } catch (err) {
       console.error('Error loading wishlist from Supabase:', err);
+      root.innerHTML = `<div class="empty"><h2>Could not load saved items</h2><p>${String(err.message || err).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}</p></div>`;
+      return;
     }
-    // Fallback to local storage if user not logged in or offline
-    const localWish = JSON.parse(localStorage.getItem('bc_wish') || '[]');
-    // Mock local data lookup if needed, or default empty
     savedItems = [];
     render();
   }

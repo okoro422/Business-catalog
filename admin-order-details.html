@@ -147,21 +147,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (orderErr || !order) throw new Error('Order not found');
 
     // 2. Fetch associated items from Supabase 'order_items' table
-    const { data: items } = await sb.from('order_items').select('*').eq('order_id', orderId);
-
-    // 3. Fetch staff notes and assigned rider metadata from Supabase 'order_staff_data' table
-    const { data: staffData } = await sb.from('order_staff_data').select('*').eq('order_id', orderId).maybeSingle();
+    const { data: items, error: itemsError } = await sb.from('order_items').select('*').eq('order_id', orderId);
+    if (itemsError) throw itemsError;
 
     let currentStatus = (order.status === 'New' ? 'Placed' : order.status) || 'Placed';
-    let internalNote = (staffData && staffData.notes) || '';
-    let assignedRider = (staffData && staffData.rider) || '';
+    let internalNote = order.internal_note || '';
+    let assignedRider = order.rider || '';
 
     function draw() {
       const at = STATUSES.indexOf(currentStatus);
       const itemRows = (items || []).map(i => {
-        const qty = i.quantity || i.qty || 1;
-        const price = i.price || (i.total ? i.total / qty : 0);
-        return `<div class="line"><span>${qty} × ${esc(i.product_name || i.name || 'Item')}</span><strong>${naira(price * qty)}</strong></div>`;
+        const qty = i.qty || 1;
+        const lineTotal = i.line_total != null ? i.line_total : (i.unit_price || 0) * qty;
+        return `<div class="line"><span>${qty} × ${esc(i.name || 'Item')}</span><strong>${naira(lineTotal)}</strong></div>`;
       }).join('');
 
       root.innerHTML = `
@@ -207,22 +205,38 @@ document.addEventListener('DOMContentLoaded', async () => {
       // Live event handlers updating database directly
       document.getElementById('next').onclick = async () => {
         if (at < STATUSES.length - 1) {
-          currentStatus = STATUSES[at + 1];
-          await sb.from('orders').update({ status: currentStatus }).eq('id', orderId);
+          const nextStatus = STATUSES[at + 1];
+          const { error } = await sb.from('orders').update({ status: nextStatus }).eq('id', orderId);
+          if (error) {
+            toast('Could not update order: ' + error.message);
+            return;
+          }
+          currentStatus = nextStatus;
           toast('Order status updated!');
           draw();
         }
       };
 
       document.getElementById('saveNote').onclick = async () => {
-        internalNote = document.getElementById('note').value;
-        await sb.from('order_staff_data').upsert({ order_id: orderId, notes: internalNote, rider: assignedRider });
+        const note = document.getElementById('note').value;
+        const { error } = await sb.from('orders').update({ internal_note: note }).eq('id', orderId);
+        if (error) {
+          toast('Could not save note: ' + error.message);
+          return;
+        }
+        internalNote = note;
         toast('Internal note saved!');
       };
 
       document.getElementById('rider').onchange = async e => {
-        assignedRider = e.target.value;
-        await sb.from('order_staff_data').upsert({ order_id: orderId, notes: internalNote, rider: assignedRider });
+        const rider = e.target.value;
+        const { error } = await sb.from('orders').update({ rider }).eq('id', orderId);
+        if (error) {
+          toast('Could not assign rider: ' + error.message);
+          e.target.value = assignedRider;
+          return;
+        }
+        assignedRider = rider;
         toast('Rider assigned successfully!');
       };
     }

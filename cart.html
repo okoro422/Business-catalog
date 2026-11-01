@@ -256,7 +256,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   /* Product helpers (same maths as shop.html) */
-  const PUBLIC_COLS = 'id,name,sku,brand,category_slug,cat,price,stock,status,is_shop,image_url,img';
+  const PUBLIC_COLS = 'id,name,sku,brand,category_slug,price,stock,status,image_url';
   const cleanImg = u => (typeof u === 'string' && u && u.indexOf('blob:') !== 0) ? u : '';
   const tiers = p => [
     { qty: 12, price: Math.round(p * .83 / 10) * 10 },
@@ -281,7 +281,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!ids.length) return;
     const run = cols => sb.from('products').select(cols).in('id', ids);
     let r = await run(PUBLIC_COLS);
-    if (r.error) r = await run('*');
     if (r.error) throw r.error;
     PRODUCTS = {};
     (r.data || []).forEach(p => { PRODUCTS[String(p.id)] = normalize(p); });

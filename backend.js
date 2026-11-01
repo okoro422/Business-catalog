@@ -154,8 +154,15 @@
   BC.addresses = {
     get: () => addrs,
     async add(label, note) { const r = await sb.from('addresses').insert({ user_id: live.user.id, label, note, is_default: addrs.length === 0 }).select().single(); addrs.push(mapAddr(must(r))); },
-    async setDefault(id) { addrs.forEach(a => { a.def = a.id === id; }); await sb.from('addresses').update({ is_default: false }).eq('id', live.user.id); fail(await sb.from('addresses').update({ is_default: true }).eq('id', id)); },
-    async remove(id) { addrs = addrs.filter(a => a.id !== id); fail(await sb.from('addresses').delete().eq('id', id)); }
+    async setDefault(id) {
+      must(await sb.from('addresses').update({ is_default: false }).eq('user_id', live.user.id));
+      must(await sb.from('addresses').update({ is_default: true }).eq('id', id).eq('user_id', live.user.id));
+      addrs.forEach(a => { a.def = a.id === id; });
+    },
+    async remove(id) {
+      must(await sb.from('addresses').delete().eq('id', id).eq('user_id', live.user.id));
+      addrs = addrs.filter(a => a.id !== id);
+    }
   };
   BC.requestChange = async req => { must(await sb.from('order_requests').insert({ order_id: req.id, user_id: live.user.id, type: req.type, reason: req.reason, notes: req.notes })); };
 
@@ -235,7 +242,7 @@
     };
     A.isPaid = o => !!o.paid;
     A.markPaid = id => { const o = A.orders.find(x => x.id === id); if (!o) return; o.paid = true; sb.from('orders').update({ payment_status: 'paid' }).eq('id', id).then(r => { if (r.error) { o.paid = false; A.toast('Could not save: ' + r.error.message); } else A.log('Payment received', id); }); };
-    const saveStaffData = o => sb.from('order_staff_data').upsert({ order_id: o.id, internal_note: o.note || '', rider: o.rider || '' }).then(fail);
+    const saveStaffData = o => sb.from('orders').update({ internal_note: o.note || '', rider: o.rider || '' }).eq('id', o.id).then(fail);
     A.getNote = o => o.note || ''; A.getRider = o => o.rider || '';
     A.saveNote = (id, t) => { const o = A.orders.find(x => x.id === id); if (o) { o.note = t; saveStaffData(o); } };
     A.saveRider = (id, r) => { const o = A.orders.find(x => x.id === id); if (o) { o.rider = r; saveStaffData(o); } };
@@ -354,16 +361,15 @@
     myQuotes = must(q).map(mapQuote); unreadNotes = (n.data || []).length;
   }
   async function loadAdminData() {
-    const [o, p, os, cn, sr] = await Promise.all([sb.from('orders').select('*, order_items(*)').order('created_at', { ascending: false }), sb.from('profiles').select('*'),
-      sb.from('order_staff_data').select('*'), sb.from('customer_notes').select('*'), sb.from('supply_requests').select('*, supply_request_items(id)').order('created_at', { ascending: false })]);
+    const [o, p, cn, sr] = await Promise.all([sb.from('orders').select('*, order_items(*)').order('created_at', { ascending: false }), sb.from('profiles').select('*'),
+      sb.from('customer_notes').select('*'), sb.from('supply_requests').select('*, supply_request_items(id)').order('created_at', { ascending: false })]);
     const orders = must(o), profiles = must(p), supply = must(sr);
     const prof = {}; profiles.forEach(x => { prof[x.id] = x; }); A._profiles = prof;
-    const sd = {}; (os.data || []).forEach(x => { sd[x.order_id] = x; });
     const notes = {}; (cn.data || []).forEach(x => { notes[x.customer_id] = x.note; });
     A.orders.length = 0;
-    orders.forEach(r => { const pr = prof[r.user_id], s = sd[r.id] || {};
+    orders.forEach(r => { const pr = prof[r.user_id];
       A.orders.push({ id: r.id, user_id: r.user_id, customer: r.customer_name, tier: (pr && pr.tier) || 'Guest', zone: r.zone_code, area: r.area || '', total: +r.total, status: r.status === 'Placed' ? 'New' : r.status,
-        pay: PAY_LABEL[r.payment_method] || r.payment_method, paid: r.payment_status === 'paid', fee: +r.delivery_fee, phone: r.phone, street: r.street, date: r.created_at, note: s.internal_note || '', rider: s.rider || '',
+        pay: PAY_LABEL[r.payment_method] || r.payment_method, paid: r.payment_status === 'paid', fee: +r.delivery_fee, phone: r.phone, street: r.street, date: r.created_at, note: r.internal_note || '', rider: r.rider || '',
         items: (r.order_items || []).map(i => [i.qty + ' × ' + i.name, +i.line_total]) }); });
     const st = {}, lastZone = {};
     orders.forEach(r => { if (!r.user_id) return; const s = st[r.user_id] || (st[r.user_id] = { n: 0, sum: 0 }); if (r.status !== 'Cancelled') { s.n++; s.sum += +r.total; } if (!lastZone[r.user_id]) lastZone[r.user_id] = r.zone_code; });
@@ -373,7 +379,6 @@
         zone: lastZone[x.id] || '-', phone: x.phone || '', note: notes[x.id] || '' }); });
     A.supply.length = 0;
     supply.forEach(r => A.supply.push({ id: r.id, user_id: r.user_id, biz: r.business_name, zone: r.zone_code || '-', status: r.status, items: (r.supply_request_items || []).length }));
-    sb.from('profiles').update({ last_seen_at: new Date().toISOString() }).eq('id', live.user.id).then(() => {});
   }
   const PAY_LABEL = { online: 'Online', cash: 'Cash on delivery', transfer: 'Transfer on delivery' };
 

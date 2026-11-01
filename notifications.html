@@ -151,18 +151,17 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   async function fetchNotifications() {
     try {
-      // Fetch notifications belonging to this user (or global system notes where user_id is null)
       const { data, error } = await sb
         .from('notifications')
         .select('*')
-        .or(`user_id.eq.${user.id},user_id.is.null`)
+        .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
       renderNotifications(data || []);
     } catch (err) {
       console.error('Error loading notifications:', err);
-      listEl.innerHTML = '<div class="empty">No notifications found.</div>';
+      listEl.innerHTML = `<div class="empty">Could not load notifications: ${String(err.message || err).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}</div>`;
     }
   }
 
@@ -183,7 +182,7 @@ document.addEventListener('DOMContentLoaded', async () => {
               <h3 style="font-size:1rem">${n.title || 'Notification'}</h3>
               <span class="small muted">${dateStr}</span>
             </div>
-            <p style="margin-top:4px;color:var(--ink-700)">${n.message || ''}</p>
+            <p style="margin-top:4px;color:var(--ink-700)">${n.category || 'Store update'}</p>
           </div>
         </div>
       `;
@@ -192,10 +191,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   document.getElementById('markAll').addEventListener('click', async () => {
     try {
-      await sb
+      const { error } = await sb
         .from('notifications')
         .update({ is_read: true })
         .eq('user_id', user.id);
+      if (error) throw error;
       fetchNotifications();
     } catch (err) {
       console.error('Error marking notifications read:', err);

@@ -288,7 +288,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   /* Product helpers (same maths as shop.html) */
-  const PUBLIC_COLS = 'id,name,sku,brand,category_slug,cat,price,stock,status,is_shop,image_url,img';
+  const PUBLIC_COLS = 'id,name,sku,brand,category_slug,price,stock,status,image_url';
   const tiers = p => [{ qty: 12, price: Math.round(p * .83 / 10) * 10 }, { qty: 48, price: Math.round(p * .75 / 10) * 10 }, { qty: 96, price: Math.round(p * .68 / 10) * 10 }];
   const normalize = p => { const price = Number(p.price) || 0; return Object.assign({}, p, { price, stock: Number(p.stock) || 0, tiers: tiers(price) }); };
   const isLive = p => !p.status || p.status === 'active';
@@ -334,7 +334,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!ids.length) return;
     const run = cols => sb.from('products').select(cols).in('id', ids);
     let r = await run(PUBLIC_COLS);
-    if (r.error) r = await run('*');
     if (r.error) throw r.error;
     (r.data || []).forEach(p => { PRODUCTS[String(p.id)] = normalize(p); });
   }

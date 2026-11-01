@@ -123,42 +123,57 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   try {
-    // Fetch customer data from Supabase 'customers' table
-    const { data: customer, error } = await sb.from('customers').select('*').eq('id', customerId).single();
+    const { data: customer, error } = await sb.from('profiles').select('*').eq('id', customerId).single();
     if (error || !customer) throw (error || new Error('Not found'));
+
+    const [orderResult, quoteResult, addressResult, noteResult] = await Promise.all([
+      sb.from('orders').select('id, total, status, created_at, zone_code').eq('user_id', customerId).order('created_at', { ascending: false }),
+      sb.from('supply_requests').select('id, business_name, status, total, created_at').eq('user_id', customerId).order('created_at', { ascending: false }),
+      sb.from('addresses').select('id, label, note, is_default').eq('user_id', customerId),
+      sb.from('customer_notes').select('note').eq('customer_id', customerId).maybeSingle()
+    ]);
+    if (orderResult.error) throw orderResult.error;
+    if (quoteResult.error) throw quoteResult.error;
+    if (addressResult.error) throw addressResult.error;
+    if (noteResult.error) throw noteResult.error;
+
+    const orders = orderResult.data || [];
+    const quotes = quoteResult.data || [];
+    const addresses = addressResult.data || [];
+    let customerNote = noteResult.data ? noteResult.data.note : '';
+    const deliveredOrders = orders.filter(o => o.status !== 'Cancelled');
+    const lifetimeSpent = deliveredOrders.reduce((total, o) => total + Number(o.total || 0), 0);
+    const averageOrder = deliveredOrders.length ? lifetimeSpent / deliveredOrders.length : 0;
+    const zone = orders.length ? orders[0].zone_code : '—';
 
     let tab = 'Overview';
 
     function draw() {
-      const customerName = customer.name || customer.full_name || 'Customer';
+      const customerName = customer.business_name || customer.full_name || 'Customer';
       const customerTier = customer.tier || 'Retail';
-      const customerZone = customer.zone || 'A';
-      const lifetimeSpent = customer.lifetime_spent || customer.spent || 0;
-      const outstandingVal = customer.outstanding || 0;
       const customerPhone = customer.phone || '—';
-      const customerNotes = customer.notes || '';
 
       const panel = { 
         Overview: `<p style="font-weight:700;margin-bottom:10px">Customer Overview</p><div class="line"><span>Email</span><span>${esc(customer.email || '—')}</span></div><div class="line"><span>Phone</span><span>${esc(customerPhone)}</span></div>`, 
-        Orders: `<p class="muted">No orders linked yet.</p>`,
-        Quotes: `<p class="muted">No quotes recorded.</p>`,
-        Addresses: `<div class="line"><span>Zone</span><span>${esc(customerZone)}</span></div><div class="line"><span>Phone</span><span>${esc(customerPhone)}</span></div>`,
-        Notes: `<div class="field"><textarea id="cn" rows="4" placeholder="Add an internal note...">${esc(customerNotes)}</textarea></div><button class="btn sm outline" id="sn" type="button" style="margin-top:10px">Save note</button>` 
+        Orders: orders.length ? orders.map(o => `<div class="line"><a href="admin-order-details.html?id=${encodeURIComponent(o.id)}">#${esc(o.id)} · ${esc(o.status)}</a><strong>${naira(o.total)}</strong></div>`).join('') : `<p class="muted">No orders linked yet.</p>`,
+        Quotes: quotes.length ? quotes.map(q => `<div class="line"><a href="admin-supply-quote.html?id=${encodeURIComponent(q.id)}">#${esc(q.id)} · ${esc(q.status)}</a><strong>${naira(q.total)}</strong></div>`).join('') : `<p class="muted">No quotes recorded.</p>`,
+        Addresses: addresses.length ? addresses.map(a => `<div class="line"><span>${esc(a.label)}${a.is_default ? ' · Default' : ''}</span><span>${esc(a.note || '')}</span></div>`).join('') : `<p class="muted">No saved addresses.</p>`,
+        Notes: `<div class="field"><textarea id="cn" rows="4" placeholder="Add an internal note...">${esc(customerNote)}</textarea></div><button class="btn sm outline" id="sn" type="button" style="margin-top:10px">Save note</button>`
       }[tab];
 
       root.innerHTML = `
         <div class="row-between">
           <div>
             <h1>${esc(customerName)}</h1>
-            <p class="muted">${esc(customerTier)} · Zone ${esc(customerZone)}</p>
+            <p class="muted">${esc(customerTier)} · Zone ${esc(zone)}</p>
           </div>
           <a class="muted" href="admin-customers.html">← All customers</a>
         </div>
         <div class="grid metrics" style="margin:20px 0">
           <div class="metric"><div class="l">Lifetime Spent</div><div class="v">${naira(lifetimeSpent)}</div></div>
-          <div class="metric"><div class="l">Total Orders</div><div class="v">0</div></div>
-          <div class="metric"><div class="l">Average Order</div><div class="v">${naira(0)}</div></div>
-          <div class="metric"><div class="l">Outstanding</div><div class="v">${naira(outstandingVal)}</div></div>
+          <div class="metric"><div class="l">Total Orders</div><div class="v">${deliveredOrders.length}</div></div>
+          <div class="metric"><div class="l">Average Order</div><div class="v">${naira(averageOrder)}</div></div>
+          <div class="metric"><div class="l">Open Quotes</div><div class="v">${quotes.filter(q => !['Accepted', 'Declined'].includes(q.status)).length}</div></div>
         </div>
         <div class="tabs">
           ${['Overview', 'Orders', 'Quotes', 'Addresses', 'Notes'].map(t => `<button type="button" class="tab ${t === tab ? 'active' : ''}" data-t="${t}">${t}</button>`).join('')}
@@ -166,7 +181,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         <div class="card">${panel}</div>
         <div class="btn-row">
           <button class="btn" id="ap" type="button" ${customerTier === 'Pending' ? '' : 'disabled'}>${customerTier === 'Pending' ? 'Approve Tier' : 'Approved ✓'}</button>
-          <a class="btn outline" href="admin-inbox.html?customer=${customer.id}">Message Customer</a>
+          <a class="btn outline" href="admin-inbox.html?customer=${encodeURIComponent(customer.id)}">Message Customer</a>
         </div>
       `;
 
@@ -179,9 +194,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (approveBtn && customerTier === 'Pending') {
         approveBtn.onclick = async () => {
           try {
-            const { error } = await sb.from('customers').update({ tier: 'Wholesale T1' }).eq('id', customerId);
+            const { error } = await sb.from('profiles').update({ tier: 'Wholesale T1', role: 'wholesale' }).eq('id', customerId);
             if (error) throw error;
             customer.tier = 'Wholesale T1';
+            customer.role = 'wholesale';
             toast('Customer tier approved');
             draw();
           } catch (err) {
@@ -196,9 +212,16 @@ document.addEventListener('DOMContentLoaded', async () => {
         saveNoteBtn.onclick = async () => {
           const noteText = document.getElementById('cn').value;
           try {
-            const { error } = await sb.from('customers').update({ notes: noteText }).eq('id', customerId);
+            const { data: { user: staff }, error: authError } = await sb.auth.getUser();
+            if (authError) throw authError;
+            const { error } = await sb.from('customer_notes').upsert({
+              customer_id: customerId,
+              note: noteText,
+              updated_at: new Date().toISOString(),
+              updated_by: staff.id
+            });
             if (error) throw error;
-            customer.notes = noteText;
+            customerNote = noteText;
             toast('Note saved successfully');
           } catch (err) {
             console.error('Error saving note:', err);
