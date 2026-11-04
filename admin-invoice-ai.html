@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Invoice AI — Business Catalog Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Fraunces:opsz,wght@9..144,400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="./config.js"></script>
+<script src="supabase-client.js"></script>
+<script src="auth.js"></script>
+<style>
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;background:#FBF8F1;color:#3A4140;font:14px/1.5 'DM Sans',system-ui,sans-serif}
+button,input{font:inherit}
+h1,h2,h3{font-family:'Fraunces',Georgia,serif;color:#1E2321}
+a{color:inherit;text-decoration:none}
+.admin{display:flex;min-height:100vh}
+.side{display:none;width:230px;flex-shrink:0;background:#0F2A1D;color:#fff;padding:22px 0}
+.side .brand{display:block;padding:0 20px 20px;font:700 1.15rem 'Fraunces',Georgia,serif;border-bottom:1px solid #ffffff22}
+.side nav{display:grid;gap:3px;padding:12px 0}
+.side nav a{padding:10px 20px;color:#B9CDB9}
+.side nav a:hover,.side nav a.active{background:#17382A;color:#fff}
+.main{flex:1;min-width:0}
+.top{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:14px 18px;background:#fff;border-bottom:1px solid #EBE3D0}
+.content{max-width:1180px;margin:auto;padding:20px 16px 90px}
+.head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:16px}
+.head p{color:#6B7370;margin-top:5px}
+.panel{background:#fff;border:1px solid #EBE3D0;border-radius:12px;padding:18px}
+.drop{display:grid;place-items:center;min-height:150px;padding:20px;text-align:center;border:1px dashed #B9CDB9;border-radius:12px;background:#F3FAF5;cursor:pointer}
+.drop:hover,.drop:focus-within{border-color:#1F4D36}
+.drop i{font-size:22px;color:#1F4D36}
+.drop input{max-width:100%;margin-top:12px}
+.muted{color:#6B7370}
+.notice{margin:12px 0;padding:10px 12px;border-radius:8px;background:#F5F0E4;color:#6B4E12}
+.success{background:#E8F5EC;color:#1F4D36}
+.btn{border:1px solid #1F4D36;background:#1F4D36;color:#fff;padding:9px 15px;border-radius:999px;cursor:pointer;font-weight:600}
+.btn:disabled{opacity:.55;cursor:not-allowed}
+.btn.outline{background:#fff;color:#1F4D36}
+.actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:14px}
+.table-wrap{overflow:auto;margin-top:18px;border:1px solid #EBE3D0;border-radius:12px;background:#fff}
+table{width:100%;min-width:650px;border-collapse:collapse;text-align:left}
+th,td{padding:12px 14px;border-bottom:1px solid #EBE3D0}
+th{font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:#6B7370;background:#FBF8F1}
+tr:last-child td{border-bottom:0}
+.badge{display:inline-block;padding:4px 9px;border-radius:999px;background:#E8F5EC;color:#1F4D36;font-size:11px;font-weight:700}
+.badge.warn{background:#FEF3C7;color:#92400E}
+.error{color:#B3402F;min-height:20px}
+.tabbar{position:fixed;bottom:0;left:0;right:0;display:flex;justify-content:space-around;gap:4px;padding:7px 4px calc(7px + env(safe-area-inset-bottom));background:#fff;border-top:1px solid #EBE3D0}
+.tabbar a{display:flex;flex-direction:column;align-items:center;gap:2px;flex:1;color:#6B7370;font-size:10px}.tabbar i{font-size:16px}
+@media(min-width:900px){.side{display:block}.top{padding:16px 32px}.content{padding:28px 32px}.tabbar{display:none}}
+</style>
+</head>
+<body data-layout="admin" data-section="orders" data-title="Invoice AI">
+<div class="admin">
+  <aside class="side"><a class="brand" href="admin-dashboard.html">Business Catalog</a><nav>
+    <a href="admin-dashboard.html">Dashboard</a><a href="admin-products.html">Products</a><a href="admin-orders.html">Orders</a>
+    <a href="admin-credit-ledger.html">Credit ledger</a><a class="active" href="admin-invoice-ai.html">Invoice AI</a>
+    <a href="admin-inbox.html">Inbox</a><a href="admin-supply-requests.html">Supply requests</a><a href="index.html">View store</a>
+  </nav></aside>
+  <div class="main">
+    <header class="top"><strong>Supplier Invoice AI</strong><a href="admin-dashboard.html">Dashboard</a></header>
+    <main class="content">
+      <div class="head"><div><h1>Upload supplier invoice</h1><p>Save a PDF or photo securely, then send it to your n8n workflow when ready.</p></div><span class="badge" id="workflowBadge">Checking workflow…</span></div>
+      <section class="panel">
+        <label class="drop" for="invoiceFile">
+          <span><i class="fa-regular fa-file-lines"></i><br><strong>Drop an invoice here or choose a file</strong><br><span class="muted">PDF, JPG, PNG or WebP · maximum 15 MB</span><br><input id="invoiceFile" type="file" accept="application/pdf,image/jpeg,image/png,image/webp"></span>
+        </label>
+        <div class="actions"><button class="btn" type="button" id="uploadBtn" disabled><i class="fa-solid fa-wand-magic-sparkles"></i> Upload invoice</button><span class="muted" id="selectedFile">No file selected</span></div>
+        <p class="notice" id="workflowNotice">The invoice upload screen is ready. Set your n8n webhook URL in <code>config.js</code> after you build the workflow; no n8n workflow is created here.</p>
+        <p class="error" id="uploadError" role="alert"></p>
+      </section>
+      <div class="table-wrap">
+        <table><thead><tr><th>Uploaded file</th><th>Supplier</th><th>Invoice no.</th><th>Total</th><th>Status</th><th>Action</th></tr></thead>
+          <tbody id="invoiceRows"><tr><td colspan="6" class="muted" style="text-align:center">Loading invoice records…</td></tr></tbody>
+        </table>
+      </div>
+    </main>
+  </div>
+</div>
+<nav class="tabbar" aria-label="Staff navigation">
+  <a href="admin-dashboard.html"><i class="fa-solid fa-chart-line"></i>Dashboard</a><a href="admin-orders.html"><i class="fa-solid fa-box"></i>Orders</a>
+  <a href="admin-credit-ledger.html"><i class="fa-solid fa-credit-card"></i>Credit</a><a href="admin-invoice-ai.html"><i class="fa-solid fa-file-invoice"></i>Invoice AI</a>
+  <a href="admin-products.html"><i class="fa-solid fa-store"></i>Products</a>
+</nav>
+<script>
+document.addEventListener('DOMContentLoaded', async () => {
+  if (typeof checkAuthGuard === 'function') checkAuthGuard();
+  const sb = window.BCLive && window.BCLive.sb;
+  const $ = id => document.getElementById(id);
+  const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'];
+  const maxBytes = 15 * 1024 * 1024;
+  const webhookUrl = String((window.BC_CONFIG && window.BC_CONFIG.N8N_INVOICE_WEBHOOK_URL) || '').trim();
+  let selectedFile = null;
+  let staffUser = null;
+
+  function escapeHtml(value) {
+    return String(value == null ? '' : value).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+  }
+  function money(value) {
+    return '₦' + Number(value || 0).toLocaleString('en-NG', { maximumFractionDigits: 0 });
+  }
+  function showFile(file) {
+    selectedFile = file || null;
+    $('selectedFile').textContent = selectedFile ? `${selectedFile.name} (${(selectedFile.size / 1024 / 1024).toFixed(2)} MB)` : 'No file selected';
+    $('uploadBtn').disabled = !selectedFile;
+    $('uploadError').textContent = '';
+  }
+  function showError(message) {
+    $('invoiceRows').innerHTML = `<tr><td colspan="6" class="error" style="text-align:center">${escapeHtml(message)}</td></tr>`;
+  }
+
+  $('workflowBadge').textContent = webhookUrl ? 'Webhook configured' : 'Workflow not connected';
+  $('workflowBadge').classList.toggle('warn', !webhookUrl);
+  if (webhookUrl) {
+    $('workflowNotice').textContent = 'After upload, the file will be sent to the configured n8n webhook using a short-lived download link. Your workflow must update the invoice record with its extraction results.';
+    $('workflowNotice').classList.add('success');
+  }
+
+  if (!sb) {
+    $('uploadBtn').disabled = true;
+    $('uploadError').textContent = 'Supabase is unavailable. Check config.js and your internet connection.';
+    showError('Could not connect to Supabase.');
+    return;
+  }
+
+  try {
+    const { data: { session }, error } = await sb.auth.getSession();
+    if (error) throw error;
+    const user = session && session.user;
+    if (!user) {
+      location.href = 'staff-login.html';
+      return;
+    }
+    staffUser = user;
+  } catch (error) {
+    console.error('Could not verify staff session:', error);
+    $('uploadError').textContent = error.message || 'Could not verify your staff session.';
+    return;
+  }
+
+  async function loadInvoices() {
+    const { data, error } = await sb.from('supplier_invoices')
+      .select('id,file_name,supplier_name,invoice_number,total,status,error_message,created_at')
+      .order('created_at', { ascending: false }).limit(50);
+    if (error) throw error;
+    $('invoiceRows').innerHTML = data && data.length ? data.map(invoice => `
+      <tr>
+        <td><strong>${escapeHtml(invoice.file_name)}</strong><br><small class="muted">${new Date(invoice.created_at).toLocaleDateString('en-GB')}</small></td>
+        <td>${escapeHtml(invoice.supplier_name || '—')}</td><td>${escapeHtml(invoice.invoice_number || '—')}</td>
+        <td>${invoice.total == null ? '—' : money(invoice.total)}</td>
+        <td><span class="badge ${invoice.status === 'failed' ? 'warn' : ''}">${escapeHtml(invoice.status)}</span>${invoice.error_message ? `<br><small class="error">${escapeHtml(invoice.error_message)}</small>` : ''}</td>
+        <td><button class="btn outline send-webhook" type="button" data-id="${escapeHtml(invoice.id)}" ${webhookUrl ? '' : 'disabled'}>${invoice.status === 'processing' ? 'Send again' : 'Extract with AI'}</button></td>
+      </tr>`).join('') : '<tr><td colspan="6" class="muted" style="text-align:center;padding:22px">No supplier invoices uploaded yet.</td></tr>';
+  }
+
+  async function sendToWebhook(invoiceId) {
+    if (!webhookUrl) throw new Error('Add your n8n webhook URL to config.js after your workflow is ready.');
+    const { data: invoice, error } = await sb.from('supplier_invoices')
+      .select('id,file_name,storage_path,content_type').eq('id', invoiceId).single();
+    if (error) throw error;
+    const { data: signed, error: signedError } = await sb.storage.from('supplier-invoices')
+      .createSignedUrl(invoice.storage_path, 600);
+    if (signedError) throw signedError;
+    const { error: updateError } = await sb.from('supplier_invoices')
+      .update({ status: 'processing', error_message: null, updated_at: new Date().toISOString() })
+      .eq('id', invoiceId);
+    if (updateError) throw updateError;
+
+    try {
+      const response = await fetch(webhookUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          event: 'supplier_invoice.uploaded',
+          invoice_id: invoice.id,
+          file_name: invoice.file_name,
+          content_type: invoice.content_type,
+          download_url: signed.signedUrl
+        })
+      });
+      if (!response.ok) throw new Error(`n8n webhook returned HTTP ${response.status}`);
+    } catch (error) {
+      const { error: restoreError } = await sb.from('supplier_invoices')
+        .update({ status: 'queued', error_message: error.message, updated_at: new Date().toISOString() })
+        .eq('id', invoiceId);
+      if (restoreError) console.error('Could not restore invoice queue status:', restoreError);
+      throw error;
+    }
+    await loadInvoices();
+  }
+
+  $('invoiceFile').addEventListener('change', event => showFile(event.target.files && event.target.files[0]));
+  const drop = document.querySelector('.drop');
+  drop.addEventListener('dragover', event => { event.preventDefault(); });
+  drop.addEventListener('drop', event => {
+    event.preventDefault();
+    showFile(event.dataTransfer.files && event.dataTransfer.files[0]);
+  });
+
+  $('uploadBtn').addEventListener('click', async () => {
+    if (!selectedFile || !staffUser) return;
+    if (!allowedTypes.includes(selectedFile.type)) {
+      $('uploadError').textContent = 'Choose a PDF, JPG, PNG or WebP file.';
+      return;
+    }
+    if (selectedFile.size <= 0 || selectedFile.size > maxBytes) {
+      $('uploadError').textContent = 'The file must be smaller than 15 MB.';
+      return;
+    }
+
+    $('uploadBtn').disabled = true;
+    $('uploadBtn').textContent = 'Uploading…';
+    $('uploadError').textContent = '';
+    const extension = selectedFile.name.split('.').pop().toLowerCase().replace(/[^a-z0-9]/g, '') || 'file';
+    const uniqueId = window.crypto && typeof window.crypto.randomUUID === 'function'
+      ? window.crypto.randomUUID()
+      : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    const storagePath = `${staffUser.id}/${uniqueId}.${extension}`;
+    let uploaded = false;
+    try {
+      const { error: uploadError } = await sb.storage.from('supplier-invoices')
+        .upload(storagePath, selectedFile, { contentType: selectedFile.type, upsert: false });
+      if (uploadError) throw uploadError;
+      uploaded = true;
+
+      const { data: invoice, error: insertError } = await sb.from('supplier_invoices').insert({
+        uploaded_by: staffUser.id,
+        file_name: selectedFile.name,
+        storage_path: storagePath,
+        content_type: selectedFile.type,
+        file_size: selectedFile.size
+      }).select('id').single();
+      if (insertError) throw insertError;
+      uploaded = false;
+
+      showFile(null);
+      $('invoiceFile').value = '';
+      await loadInvoices();
+      if (webhookUrl) {
+        try {
+          await sendToWebhook(invoice.id);
+          $('uploadError').textContent = 'Invoice uploaded and sent to n8n. Extraction results will appear when your workflow updates this record.';
+        } catch (error) {
+          console.error('Could not trigger n8n workflow:', error);
+          $('uploadError').textContent = `Invoice saved, but n8n could not be triggered: ${error.message}`;
+        }
+      } else {
+        $('uploadError').textContent = 'Invoice uploaded securely. It will remain queued until you configure and trigger your n8n workflow.';
+      }
+    } catch (error) {
+      console.error('Could not upload supplier invoice:', error);
+      if (uploaded) {
+        const { error: cleanupError } = await sb.storage.from('supplier-invoices').remove([storagePath]);
+        if (cleanupError) console.error('Could not remove unlinked invoice file:', cleanupError);
+      }
+      $('uploadError').textContent = error.message || 'Could not upload invoice.';
+    } finally {
+      $('uploadBtn').disabled = !selectedFile;
+      $('uploadBtn').innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> Upload invoice';
+    }
+  });
+
+  $('invoiceRows').addEventListener('click', async event => {
+    const button = event.target.closest('.send-webhook');
+    if (!button || !webhookUrl) return;
+    button.disabled = true;
+    $('uploadError').textContent = '';
+    try {
+      await sendToWebhook(button.dataset.id);
+      $('uploadError').textContent = 'Invoice sent to n8n.';
+    } catch (error) {
+      console.error('Could not send invoice to n8n:', error);
+      $('uploadError').textContent = error.message || 'Could not send invoice to n8n.';
+    } finally {
+      button.disabled = false;
+    }
+  });
+
+  try {
+    await loadInvoices();
+  } catch (error) {
+    console.error('Could not load supplier invoices:', error);
+    showError(`Could not load invoice records: ${error.message}`);
+  }
+});
+</script>
+</body>
+</html>

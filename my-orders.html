@@ -18,7 +18,7 @@
 <script src="auth.js"></script>
 
 <style>
-:root{
+body{
   --forest-900:#0F2A1D;--forest-800:#17382A;--forest-700:#1F4D36;--forest-600:#2C6B4A;
   --sage-300:#B9CDB9;--mint-200:#CFE8D5;--mint-100:#E8F5EC;--mint-50:#F3FAF5;
   --cream-50:#FBF8F1;--cream-100:#F5F0E4;--cream-200:#EBE3D0;--white:#fff;
@@ -81,9 +81,11 @@ h1{font-size:clamp(1.5rem,3vw,1.9rem)}
   </div>
   <div class="pills" id="pills">
     <button type="button" class="pill active" data-f="all">All</button>
-    <button type="button" class="pill" data-f="active">Active</button>
+    <button type="button" class="pill" data-f="Placed">Placed</button>
+    <button type="button" class="pill" data-f="Processing">Processing</button>
+    <button type="button" class="pill" data-f="Dispatched">Dispatched</button>
     <button type="button" class="pill" data-f="Delivered">Delivered</button>
-    <button type="button" class="pill" data-f="Cancelled">Cancelled</button>
+    <button type="button" class="pill" data-f="Unpaid credit">Unpaid credit</button>
   </div>
   <div class="stack" id="list">
     <div class="empty">Loading your orders...</div>
@@ -96,43 +98,54 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   const naira = n => '₦' + Math.round(n).toLocaleString('en-NG');
   const STEPS = ['Placed', 'Confirmed', 'Packed', 'Out for delivery', 'Delivered'];
-  let f = 'all', q = '', open = null, ordersList = [];
+  let f = 'all', q = '', open = null, ordersList = [], loadError = '';
 
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const date = d => new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
   const badge = s => `<span class="badge ${s === 'Delivered' ? '' : s === 'Cancelled' ? 'danger' : 'warn'}">${s}</span>`;
 
   function detail(o) {
-    const at = STEPS.indexOf(o.status);
+    const at = STEPS.indexOf(o.status === 'New' ? 'Placed' : o.status);
     const items = o.items || [];
     return `<div class="stack" style="gap:10px;border-top:1px solid var(--border);padding-top:12px">
       <div class="steps">${STEPS.map((s, i) => `<span class="step ${i <= at ? 'active' : ''}">${i + 1} ${s}</span>`).join('')}</div>
-      ${items.map(i => `<div class="line"><span>${i.qty} × ${esc(i.name)}</span><strong>${naira(i.total || i.price * i.qty)}</strong></div>`).join('')}
+      ${items.map(i => `<div class="line"><span>${i.qty} × ${esc(i.name)}</span><strong>${naira(i.total || i.line_total || i.unit_price * i.qty)}</strong></div>`).join('')}
       <div class="line"><span>Delivery</span><strong>${o.fee ? naira(o.fee) : 'Free'}</strong></div>
       <div class="btn-row" style="margin:0">
         <a class="btn sm outline" href="chat.html">Message us</a>
-        ${['Placed', 'Confirmed'].includes(o.status) ? `<a class="btn sm outline" href="cancel-return.html?id=${o.id}&type=cancel">Cancel order</a>` : ''}
-        ${o.status === 'Delivered' ? `<a class="btn sm outline" href="cancel-return.html?id=${o.id}&type=return">Return items</a>` : ''}
+        ${['Placed', 'Confirmed'].includes(o.status) ? `<a class="btn sm outline" href="cancel-order.html?id=${encodeURIComponent(o.id)}&amp;type=cancel">Cancel order</a>` : ''}
+        ${o.status === 'Delivered' ? `<a class="btn sm outline" href="cancel-order.html?id=${encodeURIComponent(o.id)}&amp;type=return">Return items</a>` : ''}
       </div></div>`;
   }
 
   function render() {
-    const filtered = ordersList.filter(o => 
-      (f === 'all' || (f === 'active' ? !['Delivered', 'Cancelled'].includes(o.status) : o.status === f)) && 
+    const filtered = ordersList.filter(o => {
+      const matchesStatus = f === 'all' ||
+        (f === 'Placed' && ['Placed', 'New'].includes(o.status)) ||
+        (f === 'Processing' && ['Confirmed', 'Packed'].includes(o.status)) ||
+        (f === 'Dispatched' && o.status === 'Out for delivery') ||
+        (f === 'Delivered' && o.status === 'Delivered') ||
+        (f === 'Unpaid credit' && o.payment_method === 'credit' && !['paid', 'succeeded'].includes(String(o.payment_status || '').toLowerCase()));
+      return matchesStatus &&
       (!q || o.id.toLowerCase().includes(q))
-    );
+    });
 
-    document.getElementById('list').innerHTML = filtered.length ? filtered.map(o => `<div class="card stack" style="gap:12px">
+    document.getElementById('list').innerHTML = loadError
+      ? `<div class="empty"><h3>We couldn't load your orders</h3><p>${esc(loadError)}</p><button class="btn" type="button" onclick="location.reload()">Try again</button></div>`
+      : filtered.length ? filtered.map(o => `<div class="card stack" style="gap:12px">
       <div class="row-between">
         <div><div class="price">#${esc(o.id.slice(0, 8))}</div><div class="small muted">${date(o.date)} · ${esc(o.area || '')}</div></div>
-        ${badge(o.status)}
+        <div>${badge(o.status)} <span class="badge ${String(o.payment_status || '').toLowerCase() === 'paid' ? '' : 'warn'}">${esc(o.payment_status || o.payment_method || 'Payment pending')}</span></div>
       </div>
       <div class="row-between">
         <span class="price">${naira(o.total)}</span>
-        <span style="display:flex;gap:8px">
-          ${o.status === 'Delivered' ? `<button class="btn sm outline" type="button" data-reorder="${esc(o.id)}">Reorder</button>` : ''}
+        <span class="small muted">${(o.items || []).length} item${(o.items || []).length === 1 ? '' : 's'}</span>
+      </div>
+      <div class="btn-row" style="margin:0">
+          <a class="btn sm" href="order-details.html?id=${encodeURIComponent(o.id)}">Details</a>
+          <a class="btn sm outline" href="order-details.html?id=${encodeURIComponent(o.id)}&amp;print=1">Receipt</a>
           <button class="btn sm" type="button" data-track="${esc(o.id)}">${open === o.id ? 'Hide' : 'Track'}</button>
-        </span>
+          <button class="btn sm outline" type="button" data-reorder="${esc(o.id)}">Reorder</button>
       </div>
       ${open === o.id ? detail(o) : ''}</div>`).join('')
       : '<div class="empty"><h3>No orders found</h3><p style="margin:8px 0 18px">Your live Supabase orders will show up here.</p><a class="btn" href="shop.html">Start shopping</a></div>';
@@ -141,15 +154,17 @@ document.addEventListener('DOMContentLoaded', async () => {
   async function fetchOrders() {
     if (!sb) {
       ordersList = [];
+      loadError = 'The database connection is unavailable. Check your connection and try again.';
       render();
       return;
     }
 
     try {
-      const { data: { user } } = await sb.auth.getUser();
+      const { data: { session }, error: authError } = await sb.auth.getSession();
+      if (authError) throw authError;
+      const user = session && session.user;
       if (!user) {
-        ordersList = [];
-        render();
+        location.href = 'signin.html';
         return;
       }
 
@@ -160,10 +175,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
+      loadError = '';
            ordersList = (data || []).map(o => Object.assign({}, o, { id: String(o.id), date: o.created_at, fee: o.delivery_fee, items: o.items || [] }));
     } catch (err) {
       console.error('Error fetching live orders:', err);
       ordersList = [];
+      loadError = err.message || 'Please try again.';
     }
     render();
   }
@@ -188,6 +205,38 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('list').addEventListener('click', e => {
     const t = e.target.closest('[data-track]'); 
     if (t) { open = open === t.dataset.track ? null : t.dataset.track; render(); return; }
+    const reorder = e.target.closest('[data-reorder]');
+    if (reorder) {
+      const order = ordersList.find(item => item.id === reorder.dataset.reorder);
+      if (!order) return;
+      try {
+        const cart = JSON.parse(localStorage.getItem('bc_cart') || '[]');
+        let added = 0;
+        (order.items || []).forEach(item => {
+          if (!item.product_id) return;
+          const suffix = String(item.name || '').match(/ · (Dozen|48 pcs|Carton)$/);
+          const packSize = suffix ? ({Dozen:12,'48 pcs':48,Carton:96}[suffix[1]]) : 1;
+          const mode = suffix ? 'wholesale' : 'single';
+          const id = String(item.product_id);
+          const key = `${id}|${mode}`;
+          const qty = Number(item.qty || 1) * packSize;
+          const price = Number(item.unit_price || 0) / packSize;
+          const line = cart.find(itemLine => itemLine.key === key);
+          if (line) line.qty += qty;
+          else cart.push({ key, id, mode, qty, price });
+          added += 1;
+        });
+        if (!added) {
+          toast('These order items are not linked to products that can be reordered.');
+          return;
+        }
+        localStorage.setItem('bc_cart', JSON.stringify(cart));
+        location.href = 'cart.html';
+      } catch (error) {
+        console.error('Could not reorder items:', error);
+        toast('Could not add these items to your cart.');
+      }
+    }
   });
 });
 </script>

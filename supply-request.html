@@ -18,7 +18,7 @@
 <script src="auth.js"></script>
 
 <style>
-:root{
+body{
   --forest-900:#0F2A1D;--forest-800:#17382A;--forest-700:#1F4D36;--forest-600:#2C6B4A;
   --sage-300:#B9CDB9;--mint-200:#CFE8D5;--mint-100:#E8F5EC;--mint-50:#F3FAF5;
   --cream-50:#FBF8F1;--cream-100:#F5F0E4;--cream-200:#EBE3D0;--white:#fff;
@@ -141,6 +141,7 @@ body.has-tabbar{padding-bottom:var(--tabbar)}
       </div>
       <div><h3 style="margin-bottom:10px">Items</h3><div class="stack" id="rows" style="gap:10px"></div>
         <button type="button" class="btn outline sm" id="add" style="margin-top:10px">+ Add item</button></div>
+      <div class="field"><label for="supplierFiles">Supplier invoice photos or PDFs (optional)</label><input id="supplierFiles" type="file" accept="application/pdf,image/jpeg,image/png,image/webp" multiple><span class="small muted">Up to 5 files, 15 MB each.</span></div>
       <p class="form-msg" id="msg" role="alert"></p>
       <div class="btn-row" style="margin:0"><button class="btn" type="submit" id="submitBtn">Submit request</button></div>
     </form>
@@ -214,6 +215,31 @@ document.addEventListener('DOMContentLoaded', async () => {
   const sb = (window.BCLive && window.BCLive.sb) || (window.supabase && typeof window.supabase.createClient === 'function' && window.BC_CONFIG ? window.supabase.createClient(window.BC_CONFIG.SUPABASE_URL, window.BC_CONFIG.SUPABASE_ANON_KEY) : null);
   const $ = id => document.getElementById(id);
   const MULT = { Single: 1, Dozen: 12, Carton: 96 };
+  const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'];
+  const maxFileSize = 15 * 1024 * 1024;
+  const uniqueId = () => window.crypto && typeof window.crypto.randomUUID === 'function'
+    ? window.crypto.randomUUID()
+    : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+
+  if (sb) {
+    try {
+      const { data: { user }, error: authError } = await sb.auth.getUser();
+      if (authError) throw authError;
+      if (user) {
+        const { data: profile, error: profileError } = await sb.from('profiles')
+          .select('full_name,phone,business_name,business_type').eq('id', user.id).maybeSingle();
+        if (profileError) throw profileError;
+        if (profile) {
+          $('biz').value = profile.business_name || '';
+          $('btype').value = profile.business_type || '';
+          $('contact').value = profile.full_name || '';
+          $('phone').value = profile.phone || '';
+        }
+      }
+    } catch (err) {
+      console.error('Could not prefill supply request contact details:', err);
+    }
+  }
 
   // Fetch live products from Supabase for the dropdown
   let productList = [];
@@ -258,7 +284,16 @@ document.addEventListener('DOMContentLoaded', async () => {
       return;
     }
 
-    const { data: { user } } = await sb.auth.getUser();
+    let user;
+    try {
+      const { data: { session }, error: authError } = await sb.auth.getSession();
+      if (authError) throw authError;
+      user = session && session.user;
+    } catch (authError) {
+      console.error('Could not verify customer session:', authError);
+      $('msg').textContent = authError.message || 'Could not verify your account. Please sign in again.';
+      return;
+    }
     if (!user) {
       location.href = 'signin.html';
       return;
@@ -284,12 +319,19 @@ document.addEventListener('DOMContentLoaded', async () => {
       return; 
     }
 
+    const files = Array.from($('supplierFiles').files || []);
+    if (files.length > 5 || files.some(file => !allowedTypes.includes(file.type) || file.size <= 0 || file.size > maxFileSize)) {
+      $('msg').textContent = 'Choose up to 5 non-empty PDF or image files. Each file must be smaller than 15 MB.';
+      return;
+    }
+
     const btn = $('submitBtn');
     btn.disabled = true;
     btn.textContent = 'Submitting...';
+    let createdRequestId = null;
 
     try {
-      const { error } = await sb.rpc('submit_supply_request', {
+      const { data: requestId, error } = await sb.rpc('submit_supply_request', {
         p_business_name: $('biz').value.trim(),
         p_business_type: $('btype').value.trim() || null,
         p_contact_person: $('contact').value.trim(),
@@ -305,6 +347,30 @@ document.addEventListener('DOMContentLoaded', async () => {
       });
 
       if (error) throw error;
+      if (!requestId) throw new Error('The request was not assigned an ID.');
+      createdRequestId = requestId;
+
+      for (const file of files) {
+        const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+        const path = `${user.id}/${requestId}/${uniqueId()}-${safeName}`;
+        const { error: uploadError } = await sb.storage.from('supply-request-files')
+          .upload(path, file, { contentType: file.type, upsert: false });
+        if (uploadError) throw uploadError;
+
+        const { error: attachmentError } = await sb.from('supply_request_attachments').insert({
+          request_id: requestId,
+          uploaded_by: user.id,
+          file_name: file.name,
+          storage_path: path,
+          content_type: file.type,
+          file_size: file.size
+        });
+        if (attachmentError) {
+          const { error: cleanupError } = await sb.storage.from('supply-request-files').remove([path]);
+          if (cleanupError) console.error('Could not remove unlinked supply attachment:', cleanupError);
+          throw attachmentError;
+        }
+      }
 
       if (window.BC && typeof window.BC.toast === 'function') {
         window.BC.toast('Request submitted successfully');
@@ -312,9 +378,18 @@ document.addEventListener('DOMContentLoaded', async () => {
       setTimeout(() => location.href = 'my-quotes.html', 700);
     } catch (err) {
       console.error('Error submitting quote:', err);
-      $('msg').textContent = err.message || 'Failed to submit request.';
-      btn.disabled = false;
-      btn.textContent = 'Submit request';
+      if (createdRequestId) {
+        $('msg').textContent = `Request ${createdRequestId} was submitted, but an attachment could not be uploaded: ${err.message || 'Upload failed'}. You can still view the request in My Quotes.`;
+        btn.disabled = false;
+        btn.type = 'button';
+        btn.textContent = 'View My Quotes';
+        btn.onclick = () => { location.href = 'my-quotes.html'; };
+        $('supplierFiles').disabled = true;
+      } else {
+        $('msg').textContent = err.message || 'Failed to submit request.';
+        btn.disabled = false;
+        btn.textContent = 'Submit request';
+      }
     }
   });
 

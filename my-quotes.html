@@ -18,7 +18,7 @@
 <script src="auth.js"></script>
 
 <style>
-:root{
+body{
   --forest-900:#0F2A1D;--forest-800:#17382A;--forest-700:#1F4D36;--forest-600:#2C6B4A;
   --sage-300:#B9CDB9;--mint-200:#CFE8D5;--mint-100:#E8F5EC;--mint-50:#F3FAF5;
   --cream-50:#FBF8F1;--cream-100:#F5F0E4;--cream-200:#EBE3D0;--white:#fff;
@@ -77,19 +77,24 @@ h1{font-size:clamp(1.5rem,3vw,1.9rem)}
   </div>
   <div class="tabs" id="tabs">
     <button type="button" class="tab active" data-f="all">All</button>
-    <button type="button" class="tab" data-f="Quote ready">Quote ready</button>
+    <button type="button" class="tab" data-f="Approved">Approved</button>
     <button type="button" class="tab" data-f="In review">In review</button>
-    <button type="button" class="tab" data-f="Accepted">Accepted</button>
+    <button type="button" class="tab" data-f="Converted">Converted</button>
     <button type="button" class="tab" data-f="Declined">Declined</button>
   </div>
-  <div class="stack" id="list" style="gap:12px">
+  <div class="stack" id="list" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:12px">
     <div class="empty">Loading your quotes...</div>
   </div>
   <div class="btn-row">
-    <button class="btn" id="accept" type="button" disabled>Accept quote</button>
-    <a class="btn outline" id="nego" href="chat.html">Negotiate in chat</a>
+    <label class="small muted" for="paymentMethod">Payment
+      <select id="paymentMethod" class="tab" style="display:block;margin-top:4px">
+        <option value="online">Online</option><option value="cash">Cash on delivery</option><option value="transfer">Transfer</option>
+      </select>
+    </label>
+    <button class="btn" id="convert" type="button" disabled>Convert to order</button>
+    <a class="btn outline" id="nego" href="chat.html">Message us</a>
   </div>
-  <p class="small muted" style="margin-top:8px">Select a quote to accept it or discuss it with us.</p>
+  <p class="small muted" id="quoteMsg" role="status" style="margin-top:8px">Select an approved quote to convert it to an order or message our team.</p>
 </main>
 
 <script>
@@ -98,49 +103,55 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   const naira = n => '₦' + Math.round(n).toLocaleString('en-NG');
   let f = 'all', sel = null, quotesList = [];
+  let loadError = '';
 
   function toast(msg) {
     const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg;
     document.body.appendChild(t); setTimeout(() => t.remove(), 1800);
   }
 
-  const meta = q => q.status === 'Quote ready' ? `${naira(q.total || 0)} · valid 7 days` : q.status === 'Accepted' ? (q.order_id ? 'Converted to order ' + q.order_id : 'Accepted · processing order') : `In review`;
-  const badgeCls = s => (s === 'Quote ready' || s === 'Accepted') ? '' : 'gray';
+  const esc = value => String(value == null ? '' : value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const meta = q => q.status === 'Approved' ? `${naira(q.total || 0)} · valid until ${q.valid_until || 'date not set'}` : q.status === 'Converted' ? `Order ${q.converted_order_id || 'created'}` : q.status === 'Declined' ? 'This request was declined' : 'Our team is reviewing this request';
+  const badgeCls = s => (s === 'Approved' || s === 'Converted') ? '' : 'gray';
 
   function render() {
     const list = quotesList.filter(q => f === 'all' || q.status === f);
     
-    document.getElementById('list').innerHTML = list.length ? list.map(q => `
-      <div class="card row-between" data-id="${q.id}" style="${sel === q.id ? 'border-color:var(--forest-700);background:var(--mint-50)' : ''}">
-        <div>
-          <div class="price">${q.id || 'SR-000'} · ${q.title || 'Supply Request'}</div>
-          <div class="small muted">${meta(q)}</div>
-        </div>
-        <span class="badge ${badgeCls(q.status)}">${q.status || 'In review'}</span>
-      </div>`).join('')
+    document.getElementById('list').innerHTML = loadError
+      ? `<div class="empty"><h3>We couldn't load your quotes</h3><p>${esc(loadError)}</p><button class="btn" type="button" onclick="location.reload()">Try again</button></div>`
+      : list.length ? list.map(q => `
+      <article class="card stack" data-id="${esc(q.id)}" style="gap:10px;cursor:pointer;${sel === q.id ? 'border-color:var(--forest-700);background:var(--mint-50)' : ''}">
+        <div class="row-between"><strong>${esc(q.id || 'SR-000')}</strong><span class="badge ${badgeCls(q.status)}">${esc(q.status || 'In review')}</span></div>
+        <strong>${esc(q.title || 'Custom supply request')}</strong>
+        <div class="small muted">${esc(q.business_name || '')}</div>
+        <div class="small muted">${(q.items || []).map(item => `${esc(item.qty)} × ${esc(item.name)} (${esc(item.pack)})`).join('<br>') || 'Request items'}</div>
+        <div class="small muted">${esc(meta(q))}</div>
+        ${q.status === 'Approved' ? `<strong class="price">${naira(q.total || 0)}</strong>` : ''}
+      </article>`).join('')
       : '<div class="empty"><h3>No quotes here</h3><p style="margin:8px 0 18px">Request a wholesale quote and our team will reply within 24 hours.</p><a class="btn" href="supply-request.html">Request a quote</a></div>';
 
     const selectedQuote = quotesList.find(x => x.id === sel);
-    document.getElementById('accept').disabled = !(selectedQuote && selectedQuote.status === 'Quote ready');
-    document.getElementById('nego').href = 'chat.html' + (selectedQuote ? '?quote=' + selectedQuote.id : '');
+    document.getElementById('convert').disabled = !(selectedQuote && selectedQuote.status === 'Approved');
+    document.getElementById('nego').href = 'chat.html' + (selectedQuote ? '?quote=' + encodeURIComponent(selectedQuote.id) : '');
   }
 
   async function fetchQuotes() {
     if (!sb) {
       quotesList = [];
+      loadError = 'The database connection is unavailable. Check your connection and try again.';
       render();
       return;
     }
 
     try {
-      const { data: { user } } = await sb.auth.getUser();
+      const { data: { session }, error: authError } = await sb.auth.getSession();
+      if (authError) throw authError;
+      const user = session && session.user;
       if (!user) {
-        quotesList = [];
-        render();
+        location.href = 'signin.html';
         return;
       }
 
-      // Fetch from live Supabase supply_requests table
       const { data, error } = await sb
         .from('supply_requests')
         .select('*')
@@ -148,12 +159,38 @@ document.addEventListener('DOMContentLoaded', async () => {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      quotesList = (data || []).map(quote => Object.assign({}, quote, {
-        status: quote.status === 'Quoted' ? 'Quote ready' : (quote.status === 'New' ? 'In review' : quote.status)
-      }));
+      loadError = '';
+      const requestIds = (data || []).map(quote => quote.id);
+      let items = [];
+      if (requestIds.length) {
+        const { data: itemData, error: itemError } = await sb.from('supply_request_items')
+          .select('request_id,product_id,custom_description,pack,qty').in('request_id', requestIds);
+        if (itemError) throw itemError;
+        items = itemData || [];
+      }
+      const productIds = [...new Set(items.map(item => item.product_id).filter(Boolean))];
+      let products = [];
+      if (productIds.length) {
+        const { data: productData, error: productError } = await sb.from('products').select('id,name').in('id', productIds);
+        if (productError) throw productError;
+        products = productData || [];
+      }
+
+      const productNames = new Map(products.map(product => [product.id, product.name]));
+      quotesList = (data || []).map(quote => {
+        const quoteItems = items.filter(item => item.request_id === quote.id).map(item => Object.assign({}, item, {
+          name: item.product_id ? productNames.get(item.product_id) || 'Unavailable product' : item.custom_description || 'Custom item'
+        }));
+        return Object.assign({}, quote, {
+          title: quoteItems.slice(0, 2).map(item => item.name).join(' + ') || 'Custom supply request',
+          status: quote.status === 'Quoted' ? 'Approved' : quote.status === 'Accepted' ? (quote.converted_order_id ? 'Converted' : 'Approved') : quote.status === 'New' ? 'In review' : quote.status,
+          items: quoteItems
+        });
+      });
     } catch (err) {
       console.error('Error fetching live quotes:', err);
       quotesList = [];
+      loadError = err.message || 'Please try again.';
     }
     render();
   }
@@ -165,7 +202,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (b) { 
       document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
       b.classList.add('active');
-      f = b.dataset.f; 
+      f = b.dataset.f;
+      sel = null;
       render(); 
     } 
   });
@@ -178,22 +216,24 @@ document.addEventListener('DOMContentLoaded', async () => {
     } 
   });
 
-  document.getElementById('accept').addEventListener('click', async () => {
+  document.getElementById('convert').addEventListener('click', async () => {
     if (!sel || !sb) return;
-
+    const button = document.getElementById('convert');
+    button.disabled = true;
+    document.getElementById('quoteMsg').textContent = '';
     try {
-      const { error } = await sb
-        .from('supply_requests')
-        .update({ status: 'Accepted' })
-        .eq('id', sel);
-
+      const { data: orderId, error } = await sb.rpc('convert_supply_quote_to_order', {
+        p_request_id: sel,
+        p_method: document.getElementById('paymentMethod').value
+      });
       if (error) throw error;
-
-      toast('Quote accepted. We will confirm your order shortly.');
-      fetchQuotes();
+      if (!orderId) throw new Error('The new order could not be confirmed.');
+      document.getElementById('quoteMsg').textContent = `Quote converted to order ${orderId}. Opening your orders…`;
+      setTimeout(() => { location.href = 'my-orders.html?created=' + encodeURIComponent(orderId); }, 700);
     } catch (err) {
-      console.error('Error accepting quote:', err);
-      toast('Failed to accept quote.');
+      console.error('Error converting quote to order:', err);
+      document.getElementById('quoteMsg').textContent = err.message || 'Could not convert this quote to an order.';
+      button.disabled = false;
     }
   });
 });

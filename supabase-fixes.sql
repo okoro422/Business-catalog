@@ -9,6 +9,57 @@ alter table public.products
   add column if not exists ingredients text,
   add column if not exists how_to_use text;
 
+create or replace function public.handle_new_user()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  insert into public.profiles (
+    id, email, full_name, phone, business_name, business_type, tier
+  )
+  values (
+    new.id,
+    new.email,
+    new.raw_user_meta_data->>'full_name',
+    new.raw_user_meta_data->>'phone',
+    new.raw_user_meta_data->>'business_name',
+    new.raw_user_meta_data->>'business_type',
+    case
+      when new.raw_user_meta_data->>'account_type' = 'business' then 'Pending'
+      else 'Retail'
+    end
+  )
+  on conflict (id) do nothing;
+  return new;
+end;
+$$;
+
+drop trigger if exists on_auth_user_created on auth.users;
+create trigger on_auth_user_created
+  after insert on auth.users
+  for each row execute function public.handle_new_user();
+
+insert into public.profiles (
+  id, email, full_name, phone, business_name, business_type, tier
+)
+select
+  u.id,
+  u.email,
+  u.raw_user_meta_data->>'full_name',
+  u.raw_user_meta_data->>'phone',
+  u.raw_user_meta_data->>'business_name',
+  u.raw_user_meta_data->>'business_type',
+  case
+    when u.raw_user_meta_data->>'account_type' = 'business' then 'Pending'
+    else 'Retail'
+  end
+from auth.users as u
+where not exists (
+  select 1 from public.profiles as p where p.id = u.id
+);
+
 create table if not exists public.customer_notes (
   customer_id uuid primary key references public.profiles(id) on delete cascade,
   note text not null default '',

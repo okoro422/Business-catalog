@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Order details — Business Catalog</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Fraunces:opsz,wght@9..144,400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="./config.js"></script>
+<script src="supabase-client.js"></script>
+<script src="auth.js"></script>
+<style>
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;display:flex;flex-direction:column;background:#FBF8F1;color:#3A4140;font:14px/1.5 'DM Sans',system-ui,sans-serif}
+a{color:inherit;text-decoration:none}
+button{font:inherit}
+h1,h2,h3{font-family:'Fraunces',Georgia,serif;color:#1E2321;line-height:1.2}
+.announcement{padding:7px 16px;text-align:center;background:#0F2A1D;color:#fff;font-size:12px}
+.site-header{position:sticky;top:0;z-index:5;background:#FBF8F1;border-bottom:1px solid #EBE3D0}
+.header-inner{max-width:1280px;margin:auto;padding:12px 16px;display:flex;align-items:center;gap:16px}
+.brand{font-family:'Fraunces',Georgia,serif;font-size:1.1rem;font-weight:700;color:#1E2321}
+.desktop-nav{display:none;gap:20px}
+.desktop-nav a.active{color:#1F4D36;font-weight:700}
+.header-actions{margin-left:auto;display:flex;gap:14px}
+.container{width:100%;max-width:1080px;padding:24px 16px 96px;margin:auto;flex:1}
+.back{display:inline-flex;gap:8px;align-items:center;color:#6B7370;margin-bottom:16px}
+.layout{display:grid;gap:18px}
+.card{background:#fff;border:1px solid #EBE3D0;border-radius:12px;padding:18px;box-shadow:0 2px 8px rgba(15,42,29,.06)}
+.heading{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap}
+.badge{padding:5px 11px;border-radius:999px;background:#E8F5EC;color:#1F4D36;font-size:12px;font-weight:700}
+.badge.warn{background:#FEF3C7;color:#92400E}
+.steps{display:grid;grid-template-columns:repeat(4,minmax(65px,1fr));gap:8px;margin:20px 0 6px}
+.step{text-align:center;color:#6B7370;font-size:11px}
+.step i{display:block;margin:0 auto 6px;width:22px;height:22px;border:1px solid #B9CDB9;border-radius:50%;line-height:20px;background:#fff}
+.step.active{color:#1F4D36;font-weight:700}
+.step.active i{background:#1F4D36;color:#fff;border-color:#1F4D36}
+.items{width:100%;border-collapse:collapse}
+.items th,.items td{padding:12px 8px;border-bottom:1px solid #EBE3D0;text-align:left}
+.items th{font-size:10px;color:#6B7370;text-transform:uppercase;letter-spacing:.04em}
+.items td:last-child,.items th:last-child{text-align:right}
+.line{display:flex;justify-content:space-between;gap:12px;padding:9px 0;border-bottom:1px dashed #EBE3D0}
+.line:last-child{border:0}
+.line.total{font-size:1.08rem;font-weight:700;color:#1E2321}
+.muted{color:#6B7370}
+.btn{display:inline-flex;justify-content:center;align-items:center;gap:8px;min-height:40px;padding:9px 16px;border:1px solid #1F4D36;border-radius:999px;background:#1F4D36;color:#fff;cursor:pointer}
+.btn.outline{background:#fff;color:#1F4D36}
+.actions{display:grid;gap:9px}
+.message{padding:24px;text-align:center}
+.tabbar{position:fixed;left:0;right:0;bottom:0;display:flex;justify-content:space-around;gap:4px;padding:7px 4px calc(7px + env(safe-area-inset-bottom));background:#fff;border-top:1px solid #EBE3D0}
+.tabbar a{display:flex;flex-direction:column;align-items:center;gap:2px;flex:1;color:#6B7370;font-size:10px}
+.tabbar i{font-size:16px}
+.toast{position:fixed;left:50%;bottom:82px;transform:translateX(-50%);padding:10px 16px;background:#1E2321;color:#fff;border-radius:999px;max-width:90vw}
+@media(min-width:700px){.desktop-nav{display:flex}.layout{grid-template-columns:minmax(0,1.8fr) minmax(250px,.8fr)}.container{padding-bottom:32px}.tabbar{display:none}.items th,.items td{padding:14px 12px}}
+@media print{.announcement,.site-header,.back,.actions,.tabbar{display:none!important}.container{padding:0}.layout{display:block}.card{box-shadow:none}}
+</style>
+</head>
+<body data-layout="shop" data-section="orders">
+<div class="announcement">Free delivery in Abuja over ₦50,000</div>
+<header class="site-header">
+  <div class="header-inner">
+    <a class="brand" href="index.html">Business Catalog</a>
+    <nav class="desktop-nav"><a href="index.html">Home</a><a href="shop.html">Shop</a><a href="wholesale.html">Wholesale</a><a class="active" href="my-orders.html">Orders</a><a href="my-quotes.html">Quotes</a></nav>
+    <div class="header-actions"><a href="chat.html" aria-label="Chat"><i class="fa-regular fa-comment-dots"></i></a><a href="account.html" aria-label="Account"><i class="fa-regular fa-user"></i></a></div>
+  </div>
+</header>
+<main class="container">
+  <a class="back" href="my-orders.html"><i class="fa-solid fa-arrow-left"></i> All orders</a>
+  <div class="layout" id="content"><section class="card message muted">Loading order details…</section></div>
+</main>
+<nav class="tabbar" aria-label="Main navigation">
+  <a href="index.html"><i class="fa-solid fa-house"></i>Home</a><a href="shop.html"><i class="fa-solid fa-store"></i>Shop</a>
+  <a href="my-orders.html"><i class="fa-solid fa-box"></i>Orders</a><a href="chat.html"><i class="fa-regular fa-comment-dots"></i>Chat</a><a href="account.html"><i class="fa-regular fa-user"></i>Account</a>
+</nav>
+<script>
+document.addEventListener('DOMContentLoaded', async () => {
+  const root = document.getElementById('content');
+  const orderId = new URLSearchParams(location.search).get('id');
+  const sb = window.BCLive && window.BCLive.sb;
+  const esc = value => String(value == null ? '' : value).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+  const money = value => '₦' + Number(value || 0).toLocaleString('en-NG', { maximumFractionDigits: 0 });
+  const statusSteps = ['Placed', 'Confirmed', 'Packed', 'Out for delivery', 'Delivered'];
+
+  function showError(message) {
+    root.innerHTML = `<section class="card message"><h2>Order unavailable</h2><p class="muted">${esc(message)}</p><a class="btn" href="my-orders.html">Back to my orders</a></section>`;
+  }
+
+  if (!sb) {
+    showError('The database connection is unavailable. Check your Supabase configuration and reload.');
+    return;
+  }
+  if (!orderId) {
+    showError('This page needs an order number.');
+    return;
+  }
+
+  try {
+    const { data: { session }, error: authError } = await sb.auth.getSession();
+    if (authError) throw authError;
+    const user = session && session.user;
+    if (!user) {
+      location.href = 'signin.html';
+      return;
+    }
+
+    const { data: order, error: orderError } = await sb.from('orders')
+      .select('*').eq('id', orderId).eq('user_id', user.id).single();
+    if (orderError) throw orderError;
+    const { data: items, error: itemsError } = await sb.from('order_items')
+      .select('product_id,name,qty,unit_price,line_total').eq('order_id', order.id);
+    if (itemsError) throw itemsError;
+
+    const status = order.status === 'New' ? 'Placed' : (order.status || 'Placed');
+    const activeStep = statusSteps.indexOf(status);
+    const paymentStatus = (order.payment_status || 'pending').toLowerCase();
+    root.innerHTML = `
+      <section class="card">
+        <div class="heading">
+          <div><h1>Order #${esc(order.id)}</h1><p class="muted">${new Date(order.created_at).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})}</p></div>
+          <span class="badge ${status === 'Cancelled' ? 'warn' : ''}">${esc(status)}</span>
+        </div>
+        <div class="steps" aria-label="Order progress">
+          ${statusSteps.map((step, index) => `<div class="step ${index <= activeStep && status !== 'Cancelled' ? 'active' : ''}"><i>${index < activeStep ? '&#10003;' : index + 1}</i>${esc(step)}</div>`).join('')}
+        </div>
+        ${status === 'Cancelled' ? '<p class="muted">This order was cancelled.</p>' : ''}
+        <div style="overflow-x:auto">
+          <table class="items"><thead><tr><th>Item</th><th>Qty</th><th>Unit</th><th>Total</th></tr></thead>
+          <tbody>${(items || []).map(item => `<tr><td>${esc(item.name)}</td><td>${Number(item.qty)}</td><td>${money(item.unit_price)}</td><td>${money(item.line_total == null ? item.unit_price * item.qty : item.line_total)}</td></tr>`).join('') || '<tr><td colspan="4" class="muted">No items were recorded for this order.</td></tr>'}</tbody></table>
+        </div>
+        <div class="line"><span>Subtotal</span><strong>${money(order.subtotal)}</strong></div>
+        ${Number(order.discount || 0) ? `<div class="line"><span>Discount</span><strong>−${money(order.discount)}</strong></div>` : ''}
+        <div class="line"><span>Delivery</span><strong>${Number(order.delivery_fee) ? money(order.delivery_fee) : 'Free'}</strong></div>
+        <div class="line total"><span>Total</span><strong>${money(order.total)}</strong></div>
+      </section>
+      <aside class="card">
+        <h2>Delivery</h2><p style="margin:8px 0 18px">${esc(order.area || 'Abuja')} · Zone ${esc(order.zone_code || '—')}</p>
+        <h3>Payment</h3><p class="muted" style="margin:8px 0 18px">${esc(order.payment_method || '—')} · ${esc(paymentStatus)}</p>
+        <div class="actions">
+          <button class="btn" type="button" id="printReceipt"><i class="fa-solid fa-file-arrow-down"></i> Download / print receipt</button>
+          <button class="btn outline" type="button" id="reorder"><i class="fa-solid fa-rotate"></i> Reorder items</button>
+          <a class="btn outline" href="chat.html?order=${encodeURIComponent(order.id)}"><i class="fa-regular fa-comment-dots"></i> Ask about this order</a>
+        </div>
+      </aside>`;
+
+    document.getElementById('printReceipt').addEventListener('click', () => window.print());
+    document.getElementById('reorder').addEventListener('click', () => {
+      try {
+        const cart = JSON.parse(localStorage.getItem('bc_cart') || '[]');
+        let added = 0;
+        (items || []).forEach(item => {
+          if (!item.product_id) return;
+          const suffix = String(item.name || '').match(/ · (Dozen|48 pcs|Carton)$/);
+          const packSize = suffix ? ({Dozen:12,'48 pcs':48,Carton:96}[suffix[1]]) : 1;
+          const mode = suffix ? 'wholesale' : 'single';
+          const id = String(item.product_id);
+          const key = id + '|' + mode;
+          const qty = Number(item.qty || 1) * packSize;
+          const price = Number(item.unit_price || 0) / packSize;
+          const existing = cart.find(line => line.key === key);
+          if (existing) existing.qty += qty;
+          else cart.push({ key, id, mode, qty, price });
+          added += 1;
+        });
+        if (!added) {
+          alert('These order items are not linked to products that can be reordered.');
+          return;
+        }
+        localStorage.setItem('bc_cart', JSON.stringify(cart));
+        location.href = 'cart.html';
+      } catch (error) {
+        console.error('Could not add order items to cart:', error);
+        alert('Could not reorder these items. Please try again from the shop.');
+      }
+    });
+
+    if (new URLSearchParams(location.search).get('print') === '1') {
+      setTimeout(() => window.print(), 250);
+    }
+  } catch (error) {
+    console.error('Could not load customer order details:', error);
+    showError(error.message || 'We could not load this order. Check the order number and try again.');
+  }
+});
+</script>
+</body>
+</html>

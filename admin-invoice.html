@@ -17,7 +17,7 @@
 <script src="auth.js"></script>
 <style>
 /* Business Catalog - ONE shared stylesheet for every page */
-:root{
+body{
   --forest-900:#0F2A1D;--forest-800:#17382A;--forest-700:#1F4D36;--forest-600:#2C6B4A;
   --sage-300:#B9CDB9;--mint-200:#CFE8D5;--mint-100:#E8F5EC;--mint-50:#F3FAF5;
   --cream-50:#FBF8F1;--cream-100:#F5F0E4;--cream-200:#EBE3D0;--white:#fff;
@@ -161,6 +161,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         </table>
       </div>
       <div class="card stack" style="gap:6px">
+        ${Number(order.discount || 0) ? `<div class="line"><span>Discount</span><span>−${naira(order.discount)}</span></div>` : ''}
         <div class="line"><span>Delivery fee</span><span>${naira(fee)}</span></div>
         <div class="line total"><span>TOTAL</span><span>${naira(total)}</span></div>
         <p class="small muted">Bank details: OMAK Resources Nig · GTBank: 0123456789</p>

@@ -16,7 +16,7 @@
 
 <style>
 /* Business Catalog - ONE shared stylesheet for every page */
-:root{
+body{
   --forest-900:#0F2A1D;--forest-800:#17382A;--forest-700:#1F4D36;--forest-600:#2C6B4A;
   --sage-300:#B9CDB9;--mint-200:#CFE8D5;--mint-100:#E8F5EC;--mint-50:#F3FAF5;
   --cream-50:#FBF8F1;--cream-100:#F5F0E4;--cream-200:#EBE3D0;--white:#fff;
@@ -101,16 +101,28 @@ a.card:hover{border-color:var(--sage-300)}
 .row-between{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
 .grid{display:grid;gap:16px}
 .grid.cols-2{grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}
-.grid.products{grid-template-columns:repeat(2,1fr)}
+.grid.products{grid-template-columns:repeat(2,minmax(0,1fr))}
 .grid.metrics{grid-template-columns:repeat(2,1fr)}
 .split{display:grid;gap:24px;grid-template-columns:1fr}
 .page-head{margin-bottom:20px}.page-head p{color:var(--ink-500);margin-top:4px}
 .section-head{display:flex;justify-content:space-between;align-items:center;margin:28px 0 14px}
-.product-card{background:#fff;border:1px solid var(--border);border-radius:var(--r-lg);padding:14px;display:flex;flex-direction:column;gap:10px;box-shadow:var(--shadow-1);transition:.2s}
+.product-card{min-width:0;background:#fff;border:1px solid var(--border);border-radius:var(--r-lg);padding:12px;display:flex;flex-direction:column;gap:10px;box-shadow:var(--shadow-1);transition:transform .2s,box-shadow .2s}
 .product-card:hover{transform:translateY(-3px);box-shadow:var(--shadow-2)}
-.product-img{background:var(--mint-50);border:1px solid var(--mint-100);border-radius:var(--r-md);height:150px;display:flex;align-items:center;justify-content:center;font-size:42px;color:var(--forest-700);overflow:hidden}
+.product-media{display:block}
+.product-img{position:relative;background:var(--mint-50);border:1px solid var(--mint-100);border-radius:var(--r-md);height:clamp(150px,18vw,210px);display:flex;align-items:center;justify-content:center;font-size:42px;color:var(--forest-700);overflow:hidden}
 .product-img img{width:100%;height:100%;object-fit:cover}
-.product-foot{display:flex;justify-content:space-between;align-items:center;margin-top:auto}
+.product-flag{position:absolute;top:9px;left:9px;padding:4px 9px;border-radius:var(--r-pill);background:var(--forest-700);color:#fff;font-size:10px;font-weight:700}
+.product-brand{font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--forest-700)}
+.product-sku{font-size:11px;color:var(--ink-500)}
+.product-summary{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;min-height:36px;font-size:12px;color:var(--ink-500)}
+.product-stock{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--success)}
+.product-stock::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor}
+.product-stock.low{color:var(--warning)}.product-stock.out{color:var(--danger)}
+.product-foot{display:flex;justify-content:space-between;align-items:flex-end;gap:8px;margin-top:auto}
+.product-price-label{display:block;font-size:11px;color:var(--ink-500)}
+.product-details-link{display:flex;justify-content:space-between;align-items:center;border-top:1px solid var(--border);padding-top:9px;color:var(--forest-700);font-size:12px;font-weight:700}
+.product-details-link:hover{text-decoration:underline}
+.add-btn{width:40px;height:40px}
 .price{font-weight:700;font-size:1.05rem;color:var(--ink-900)}
 .empty{text-align:center;padding:48px 16px;color:var(--ink-500)}
 .empty h3{margin-bottom:6px}.empty .btn{margin-top:14px}
@@ -341,7 +353,7 @@ tr:last-child td{border-bottom:0}
   }
 
   // Only customer-safe columns (never request cost price)
-  const PUBLIC_COLS = 'id,name,sku,brand,category_slug,price,stock,status,featured,is_bulk,image_url';
+  const PUBLIC_COLS = 'id,name,sku,brand,category_slug,price,stock,status,featured,is_bulk,image_url,icon,description';
   async function fetchProducts(sb) {
     let r = await sb.from('products').select(PUBLIC_COLS + ',created_at');
     if (r.error) r = await sb.from('products').select(PUBLIC_COLS);
@@ -466,17 +478,21 @@ document.addEventListener('bc:ready', () => {
   const isFeat = p => p.featured === true || p.featured === 'true';
   const when = p => (p.created_at ? Date.parse(p.created_at) || 0 : 0);
 
-  const meta = p => p.stock < 1 ? '<p class="small text-danger">Out of stock</p>'
-    : p.stock <= 10 ? `<p class="small text-warning">Low stock: ${p.stock} left</p>`
-    : `<p class="small muted">From ${BC.naira(p.tiers[2].price)} / carton</p>`;
-
   const card = p => {
     const link = 'product-details.html?id=' + encodeURIComponent(p.id);
+    const knownCategory = CATS.find(item => item[0] === p.category_slug);
+    const category = knownCategory ? knownCategory[1].replace(/&amp;/g, '&') : String(p.category_slug || 'Everyday essentials').replace(/-/g, ' ');
+    const stockClass = p.stock < 1 ? 'out' : p.stock <= 10 ? 'low' : '';
+    const stockLabel = p.stock < 1 ? 'Currently unavailable' : p.stock <= 10 ? `Low stock · ${p.stock} available` : `${p.stock} available`;
     return `<article class="product-card" data-id="${esc(p.id)}">
-    <a href="${link}"><div class="product-img">${BC.thumb(p)}</div></a>
-    <div><h3><a href="${link}">${esc(p.name)}</a></h3>${meta(p)}</div>
-    <div class="product-foot"><span class="price">${BC.naira(p.price)}</span>
-    <button class="add-btn" data-id="${esc(p.id)}" type="button" aria-label="Add ${esc(p.name)} to cart" ${p.stock < 1 ? 'disabled' : ''}><i class="fa-solid fa-plus"></i></button></div></article>`;
+    <a class="product-media" href="${link}" aria-label="View ${esc(p.name)} details"><div class="product-img">${BC.thumb(p)}${p.featured ? '<span class="product-flag">Featured</span>' : ''}</div></a>
+    <div class="product-brand">${esc(p.brand || 'OMAK Store')} · ${esc(category)}</div>
+    <div><h3><a href="${link}">${esc(p.name)}</a></h3><div class="product-sku">SKU: ${esc(p.sku || p.id)}</div></div>
+    <p class="product-summary">${esc(p.description || (p.is_bulk ? 'Bulk product · Open details for current quantity pricing.' : 'Retail product · Open details for current specifications.'))}</p>
+    <div class="product-stock ${stockClass}">${stockLabel}</div>
+    <div class="product-foot"><div><span class="product-price-label">Price per unit</span><span class="price">${BC.naira(p.price)}</span></div>
+    <button class="add-btn" data-id="${esc(p.id)}" type="button" aria-label="Add ${esc(p.name)} to cart" ${p.stock < 1 ? 'disabled' : ''}><i class="fa-solid fa-plus"></i></button></div>
+    <a class="product-details-link" href="${link}">View product details <i class="fa-solid fa-arrow-right"></i></a></article>`;
   };
 
   function render() {

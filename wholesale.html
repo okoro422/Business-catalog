@@ -17,7 +17,7 @@
 <script src="auth.js"></script>
 <style>
 /* Business Catalog - ONE shared stylesheet for every page */
-:root{
+body{
   --forest-900:#0F2A1D;--forest-800:#17382A;--forest-700:#1F4D36;--forest-600:#2C6B4A;
   --sage-300:#B9CDB9;--mint-200:#CFE8D5;--mint-100:#E8F5EC;--mint-50:#F3FAF5;
   --cream-50:#FBF8F1;--cream-100:#F5F0E4;--cream-200:#EBE3D0;--white:#fff;
@@ -108,9 +108,18 @@ a.card:hover{border-color:var(--sage-300)}
 .section-head{display:flex;justify-content:space-between;align-items:center;margin:28px 0 14px}
 .product-card{background:#fff;border:1px solid var(--border);border-radius:var(--r-lg);padding:14px;display:flex;flex-direction:column;gap:10px;box-shadow:var(--shadow-1);transition:.2s}
 .product-card:hover{transform:translateY(-3px);box-shadow:var(--shadow-2)}
-.product-img{background:var(--mint-50);border:1px solid var(--mint-100);border-radius:var(--r-md);height:150px;display:flex;align-items:center;justify-content:center;font-size:42px;color:var(--forest-700);overflow:hidden}
+.product-img{position:relative;background:var(--mint-50);border:1px solid var(--mint-100);border-radius:var(--r-md);height:clamp(150px,18vw,210px);display:flex;align-items:center;justify-content:center;font-size:42px;color:var(--forest-700);overflow:hidden}
 .product-img img{width:100%;height:100%;object-fit:cover}
+.product-brand{font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--forest-700)}
+.product-sku{font-size:11px;color:var(--ink-500)}
+.product-summary{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;min-height:36px;font-size:12px;color:var(--ink-500)}
+.product-details-link{display:flex;justify-content:space-between;align-items:center;border-top:1px solid var(--border);padding-top:9px;color:var(--forest-700);font-size:12px;font-weight:700}
+.product-details-link:hover{text-decoration:underline}
 .product-foot{display:flex;justify-content:space-between;align-items:center;margin-top:auto}
+.bulk-stepper{display:flex;align-items:center;gap:8px}
+.bulk-stepper button{width:36px;height:36px;border:1px solid var(--border);border-radius:50%;background:#fff;color:var(--forest-700);cursor:pointer}
+.bulk-stepper input{min-width:0;width:76px;padding:8px;border:1px solid var(--border);border-radius:var(--r-sm);text-align:center;font:inherit}
+.add-wholesale{width:100%}
 .price{font-weight:700;font-size:1.05rem;color:var(--ink-900)}
 .hero{background:var(--forest-900);color:#fff;border-radius:var(--r-lg);padding:32px 24px;display:grid;gap:24px;overflow:hidden}
 .hero h1{color:#fff;font-size:clamp(1.7rem,4vw,2.6rem);margin:12px 0}
@@ -430,45 +439,128 @@ body.admin-body{flex-direction:row}
 document.addEventListener('DOMContentLoaded', async () => {
   const sb = (window.BCLive && window.BCLive.sb) || (window.supabase && typeof window.supabase.createClient === 'function' && window.BC_CONFIG ? window.supabase.createClient(window.BC_CONFIG.SUPABASE_URL, window.BC_CONFIG.SUPABASE_ANON_KEY) : null);
   const naira = n => '₦' + Math.round(n).toLocaleString('en-NG');
+  const esc = value => String(value == null ? '' : value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
   let products = [];
+  let tiersByProduct = {};
+  let loadError = '';
   try {
     if (sb) {
-      const { data, error } = await sb.from('products').select('id, name, price, image_url, is_bulk, status').eq('is_bulk', true).eq('status', 'active').limit(4);
+      const { data, error } = await sb.from('products').select('id,name,sku,brand,category_slug,description,price,stock,icon,image_url,is_bulk,status').eq('is_bulk', true).eq('status', 'active').order('name');
       if (error) throw error;
       products = data || [];
-    }
+      if (products.length) {
+        const { data: tierData, error: tierError } = await sb.from('product_tiers')
+          .select('product_id,label,min_qty,price').in('product_id', products.map(product => product.id)).order('min_qty');
+        if (tierError) throw tierError;
+        (tierData || []).forEach(tier => {
+          if (!tiersByProduct[tier.product_id]) tiersByProduct[tier.product_id] = [];
+          tiersByProduct[tier.product_id].push(tier);
+        });
+      }
+    } else loadError = 'The database connection is unavailable.';
   } catch (err) {
     console.error('Error fetching bulk products from Supabase:', err);
+    loadError = err.message || 'Could not load bulk products.';
   }
 
   const bulkContainer = document.getElementById('bulk');
   if (bulkContainer) {
     if (products.length > 0) {
       bulkContainer.innerHTML = products.map(p => {
-        const cartonPrice = Math.round(p.price * 0.68 / 10) * 10;
+        const tiers = tiersByProduct[p.id] || [];
+        const available = Number(p.stock || 0);
+        const wholesaleTiers = tiers.filter(item => Number(item.min_qty) >= 12 && Number(item.min_qty) <= available);
+        const wholesaleMinimum = wholesaleTiers.length ? Number(wholesaleTiers[0].min_qty) : 0;
+        const unitPrice = qty => {
+          const tier = tiers.filter(item => qty >= Number(item.min_qty)).pop();
+          return tier ? Number(tier.price) : null;
+        };
+        const wholesaleAvailable = wholesaleMinimum > 0;
+        const startingPrice = wholesaleAvailable ? unitPrice(wholesaleMinimum) : null;
         return `
-          <article class="product-card">
-            <a href="product-details.html?id=${p.id}">
+          <article class="product-card" data-id="${esc(p.id)}">
+            <a href="product-details.html?id=${encodeURIComponent(p.id)}">
               <div class="product-img">
-                ${p.image_url ? `<img src="${p.image_url}" alt="${p.name}" loading="lazy">` : `<i class="fa-solid fa-box"></i>`}
+                ${p.image_url ? `<img src="${esc(p.image_url)}" alt="${esc(p.name)}" loading="lazy">` : `<i class="fa-solid ${esc(p.icon || 'fa-box')}"></i>`}
               </div>
             </a>
+            <div class="product-brand">${esc(p.brand || 'OMAK Store')} · ${esc(String(p.category_slug || 'Everyday essentials').replace(/-/g, ' '))}</div>
             <div>
-              <h3><a href="product-details.html?id=${p.id}">${p.name}</a></h3>
-              <p class="small muted">From ${naira(cartonPrice)} / carton</p>
+              <h3><a href="product-details.html?id=${encodeURIComponent(p.id)}">${esc(p.name)}</a></h3>
+              <div class="product-sku">SKU: ${esc(p.sku || p.id)}</div>
             </div>
-            <div class="product-foot">
-              <span class="price">${naira(p.price)}</span>
-              <a class="btn sm outline" href="product-details.html?id=${p.id}">View</a>
-            </div>
+            <p class="product-summary">${esc(p.description || 'Bulk product · Open details for current quantity pricing.')}</p>
+            <p class="small muted">${available ? `${available} units available` : 'Currently unavailable'}${wholesaleAvailable ? ` · wholesale starts at ${wholesaleMinimum} units` : ''}</p>
+            <label class="small muted" for="qty-${esc(p.id)}">Wholesale quantity (units)</label>
+            <div class="bulk-stepper"><button type="button" class="bulk-minus" aria-label="Decrease quantity" ${wholesaleAvailable ? '' : 'disabled'}>−</button><input id="qty-${esc(p.id)}" class="bulk-qty" type="number" min="${wholesaleMinimum || 12}" max="${available}" step="12" value="${wholesaleAvailable ? wholesaleMinimum : 0}" ${wholesaleAvailable ? '' : 'disabled'}><button type="button" class="bulk-plus" aria-label="Increase quantity" ${wholesaleAvailable ? '' : 'disabled'}>+</button></div>
+            <p class="small muted bulk-unit-price">${startingPrice == null ? 'Wholesale pricing unavailable · contact our team' : `${naira(startingPrice)} per unit`}</p>
+            <button type="button" class="btn sm add-wholesale" data-id="${esc(p.id)}" ${wholesaleAvailable && startingPrice != null ? '' : 'disabled'}>Add to cart</button>
+            <a class="product-details-link" href="product-details.html?id=${encodeURIComponent(p.id)}">View product details <i class="fa-solid fa-arrow-right"></i></a>
           </article>
         `;
       }).join('');
     } else {
-      bulkContainer.innerHTML = '<div class="empty" style="grid-column:1/-1">No bulk products available at the moment.</div>';
+      bulkContainer.innerHTML = `<div class="empty" style="grid-column:1/-1">${loadError ? `Could not load bulk products: ${esc(loadError)}` : 'No bulk products available at the moment.'}</div>`;
     }
   }
+
+  bulkContainer.addEventListener('input', event => {
+    const input = event.target.closest('.bulk-qty');
+    if (!input) return;
+    const product = products.find(item => String(item.id) === input.closest('.product-card').dataset.id);
+    if (!product) return;
+    const max = Number(product.stock || 0);
+    const availableTiers = tiersByProduct[product.id] || [];
+    const minimum = availableTiers.length ? Math.max(12, Number(availableTiers[0].min_qty)) : 12;
+    const quantity = Math.min(max, Math.max(minimum, Number(input.value) || minimum));
+    input.value = quantity;
+    const tier = availableTiers.filter(item => quantity >= Number(item.min_qty)).pop();
+    const price = tier ? Number(tier.price) : null;
+    input.closest('.product-card').querySelector('.bulk-unit-price').textContent = price == null ? 'Wholesale pricing unavailable · contact our team' : `${naira(price)} per unit`;
+    input.closest('.product-card').querySelector('.add-wholesale').disabled = price == null;
+  });
+
+  bulkContainer.addEventListener('click', event => {
+    const card = event.target.closest('.product-card');
+    if (!card) return;
+    const input = card.querySelector('.bulk-qty');
+    const product = products.find(item => String(item.id) === card.dataset.id);
+    if (!product || !input) return;
+    const max = Number(product.stock || 0);
+    const tiers = tiersByProduct[product.id] || [];
+    const minimum = tiers.length ? Math.max(12, Number(tiers[0].min_qty)) : 12;
+    if (event.target.closest('.bulk-minus')) input.value = Math.max(minimum, Number(input.value) - 12);
+    else if (event.target.closest('.bulk-plus')) input.value = Math.min(max, Number(input.value) + 12);
+    else if (event.target.closest('.add-wholesale')) {
+      try {
+        const quantity = Number(input.value);
+        if (quantity < minimum) throw new Error(`Wholesale orders start at ${minimum} units.`);
+        const tier = tiers.filter(item => quantity >= Number(item.min_qty)).pop();
+        if (!tier) throw new Error('Wholesale pricing is unavailable for this quantity. Please contact our team.');
+        const price = Number(tier.price);
+        const cart = JSON.parse(localStorage.getItem('bc_cart') || '[]');
+        const id = String(product.id);
+        const key = `${id}|wholesale`;
+        const line = cart.find(item => item.key === key);
+        if (line) {
+          if (Number(line.qty) + quantity > max) throw new Error('There is not enough stock to add this quantity.');
+          line.qty = Number(line.qty) + quantity;
+          line.price = price;
+        } else {
+          cart.push({ key, id, mode: 'wholesale', qty: quantity, price });
+        }
+        localStorage.setItem('bc_cart', JSON.stringify(cart));
+        if (window.BC && typeof window.BC.toast === 'function') window.BC.toast('Wholesale items added to cart');
+        else alert('Wholesale items added to cart.');
+      } catch (error) {
+        console.error('Could not add wholesale items to cart:', error);
+        alert(error.message || 'Could not add these items to your cart.');
+      }
+      return;
+    } else return;
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+  });
 });
 </script>
 </body>

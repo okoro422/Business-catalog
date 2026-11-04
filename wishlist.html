@@ -18,7 +18,7 @@
 
 <style>
 /* Business Catalog - ONE shared stylesheet for every page */
-:root{
+body{
   --forest-900:#0F2A1D;--forest-800:#17382A;--forest-700:#1F4D36;--forest-600:#2C6B4A;
   --sage-300:#B9CDB9;--mint-200:#CFE8D5;--mint-100:#E8F5EC;--mint-50:#F3FAF5;
   --cream-50:#FBF8F1;--cream-100:#F5F0E4;--cream-200:#EBE3D0;--white:#fff;
@@ -102,16 +102,28 @@ a.card:hover{border-color:var(--sage-300)}
 .row-between{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
 .grid{display:grid;gap:16px}
 .grid.cols-2{grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}
-.grid.products{grid-template-columns:repeat(2,1fr)}
+.grid.products{grid-template-columns:repeat(2,minmax(0,1fr))}
 .grid.metrics{grid-template-columns:repeat(2,1fr)}
 .split{display:grid;gap:24px;grid-template-columns:1fr}
 .page-head{margin-bottom:20px}.page-head p{color:var(--ink-500);margin-top:4px}
 .section-head{display:flex;justify-content:space-between;align-items:center;margin:28px 0 14px}
-.product-card{background:#fff;border:1px solid var(--border);border-radius:var(--r-lg);padding:14px;display:flex;flex-direction:column;gap:10px;box-shadow:var(--shadow-1);transition:.2s}
+.product-card{min-width:0;background:#fff;border:1px solid var(--border);border-radius:var(--r-lg);padding:12px;display:flex;flex-direction:column;gap:10px;box-shadow:var(--shadow-1);transition:transform .2s,box-shadow .2s}
 .product-card:hover{transform:translateY(-3px);box-shadow:var(--shadow-2)}
-.product-img{background:var(--mint-50);border:1px solid var(--mint-100);border-radius:var(--r-md);height:150px;display:flex;align-items:center;justify-content:center;font-size:42px;color:var(--forest-700);overflow:hidden}
+.product-media{display:block}
+.product-img{position:relative;background:var(--mint-50);border:1px solid var(--mint-100);border-radius:var(--r-md);height:clamp(150px,18vw,210px);display:flex;align-items:center;justify-content:center;font-size:42px;color:var(--forest-700);overflow:hidden}
 .product-img img{width:100%;height:100%;object-fit:cover}
-.product-foot{display:flex;justify-content:space-between;align-items:center;margin-top:auto}
+.product-flag{position:absolute;top:9px;left:9px;padding:4px 9px;border-radius:var(--r-pill);background:var(--forest-700);color:#fff;font-size:10px;font-weight:700}
+.product-brand{font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--forest-700)}
+.product-sku{font-size:11px;color:var(--ink-500)}
+.product-summary{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;min-height:36px;font-size:12px;color:var(--ink-500)}
+.product-stock{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--success)}
+.product-stock::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor}
+.product-stock.low{color:var(--warning)}.product-stock.out{color:var(--danger)}
+.product-foot{display:flex;justify-content:space-between;align-items:flex-end;gap:8px;margin-top:auto}
+.product-price-label{display:block;font-size:11px;color:var(--ink-500)}
+.product-details-link{display:flex;justify-content:space-between;align-items:center;border-top:1px solid var(--border);padding-top:9px;color:var(--forest-700);font-size:12px;font-weight:700}
+.product-details-link:hover{text-decoration:underline}
+.add-btn{width:40px;height:40px}
 .price{font-weight:700;font-size:1.05rem;color:var(--ink-900)}
 .hero{background:var(--forest-900);color:#fff;border-radius:var(--r-lg);padding:32px 24px;display:grid;gap:24px;overflow:hidden}
 .hero h1{color:#fff;font-size:clamp(1.7rem,4vw,2.6rem);margin:12px 0}
@@ -228,6 +240,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const root = document.getElementById('wl');
   const sb = (window.BCLive && window.BCLive.sb) || (window.supabase && typeof window.supabase.createClient === 'function' && window.BC_CONFIG ? window.supabase.createClient(window.BC_CONFIG.SUPABASE_URL, window.BC_CONFIG.SUPABASE_ANON_KEY) : null);
   const naira = n => '₦' + Math.round(n).toLocaleString('en-NG');
+  const esc = value => String(value == null ? '' : value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const toast = msg => {
     const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg;
     document.body.appendChild(t); setTimeout(() => t.remove(), 1800);
@@ -242,7 +255,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (user) {
           const { data, error } = await sb
             .from('wishlist')
-            .select('product_id, products(id, name, price, stock, status, image_url)')
+            .select('product_id, products(id,name,sku,brand,category_slug,description,price,stock,status,featured,is_bulk,image_url,icon)')
             .eq('user_id', user.id);
           if (error) throw error;
           savedItems = (data || []).map(w => Object.assign({ wishId: w.product_id }, w.products || {})).filter(p => p.id);
@@ -278,28 +291,34 @@ document.addEventListener('DOMContentLoaded', async () => {
         <a class="muted" href="account.html" style="text-decoration:underline">Back to account</a>
       </div>
       <div class="grid products">
-        ${savedItems.map(p => `
-          <article class="product-card" data-id="${p.id}">
-            <a href="product-details.html?id=${p.id}">
+        ${savedItems.map(p => {
+          const link = 'product-details.html?id=' + encodeURIComponent(p.id);
+          const category = String(p.category_slug || 'Everyday essentials').replace(/-/g, ' ');
+          const stock = Number(p.stock || 0);
+          return `
+          <article class="product-card" data-id="${esc(p.id)}">
+            <a class="product-media" href="${link}" aria-label="View ${esc(p.name)} details">
               <div class="product-img">
-                ${p.image_url ? `<img src="${p.image_url}" alt="${p.name}" loading="lazy">` : `<i class="fa-solid fa-box"></i>`}
+                ${p.image_url ? `<img src="${esc(p.image_url)}" alt="${esc(p.name)}" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='block'"><i class="fa-solid ${esc(p.icon || 'fa-box')}" style="display:none"></i>` : `<i class="fa-solid ${esc(p.icon || 'fa-box')}"></i>`}
+                ${p.featured ? '<span class="product-flag">Featured</span>' : ''}
               </div>
             </a>
-            <div>
-              <h3><a href="product-details.html?id=${p.id}">${p.name}</a></h3>
-              <p class="small ${p.stock < 1 ? 'text-danger' : 'muted'}">${p.stock < 1 ? 'Out of stock' : 'In stock'}</p>
-            </div>
+            <div class="product-brand">${esc(p.brand || 'OMAK Store')} · ${esc(category)}</div>
+            <div><h3><a href="${link}">${esc(p.name)}</a></h3><div class="product-sku">SKU: ${esc(p.sku || p.id)}</div></div>
+            <p class="product-summary">${esc(p.description || (p.is_bulk ? 'Bulk product · Open details for current quantity pricing.' : 'Retail product · Open details for current specifications.'))}</p>
+            <div class="product-stock ${stock < 1 ? 'out' : stock <= 10 ? 'low' : ''}">${stock < 1 ? 'Currently unavailable' : stock <= 10 ? `Low stock · ${stock} available` : `${stock} available`}</div>
             <div class="product-foot">
-              <span class="price">${naira(p.price)}</span>
+              <div><span class="product-price-label">Price per unit</span><span class="price">${naira(p.price)}</span></div>
               <span style="display:flex;gap:10px;align-items:center">
-                <button class="link-danger" type="button" data-rm="${p.id}">Remove</button>
-                <button class="add-btn" type="button" data-id="${p.id}" ${p.stock < 1 ? 'disabled style="opacity:.4"' : ''} aria-label="Add to cart">
+                <button class="link-danger" type="button" data-rm="${esc(p.id)}">Remove</button>
+                <button class="add-btn" type="button" data-id="${esc(p.id)}" ${stock < 1 ? 'disabled style="opacity:.4"' : ''} aria-label="Add ${esc(p.name)} to cart">
                   <i class="fa-solid fa-plus"></i>
                 </button>
               </span>
             </div>
-          </article>
-        `).join('')}
+            <a class="product-details-link" href="${link}">View product details <i class="fa-solid fa-arrow-right"></i></a>
+          </article>`;
+        }).join('')}
       </div>
       <div class="btn-row">
         <button class="btn" id="addAll" type="button">Add all to cart</button>

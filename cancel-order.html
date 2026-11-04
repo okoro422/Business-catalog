@@ -18,7 +18,7 @@
 
 <style>
 /* Business Catalog - ONE shared stylesheet for every page */
-:root{
+body{
   --forest-900:#0F2A1D;--forest-800:#17382A;--forest-700:#1F4D36;--forest-600:#2C6B4A;
   --sage-300:#B9CDB9;--mint-200:#CFE8D5;--mint-100:#E8F5EC;--mint-50:#F3FAF5;
   --cream-50:#FBF8F1;--cream-100:#F5F0E4;--cream-200:#EBE3D0;--white:#fff;
@@ -679,36 +679,93 @@ body.admin-body{flex-direction:row}
 })();
 </script>
 <script>
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
   const $ = id => document.getElementById(id);
   const qs = new URLSearchParams(location.search);
   let type = qs.get('type') === 'return' ? 'return' : 'cancel';
+  const sb = window.BCLive && window.BCLive.sb;
+  let user = null;
+  let orders = [];
   const REASONS = { cancel: ['Ordered by mistake', 'Found a better price', 'Need to change delivery details', 'Taking too long', 'Other'], return: ['Item arrived damaged', 'Wrong item received', 'Item not as described', 'No longer needed', 'Other'] };
+
+  const esc = value => String(value == null ? '' : value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const money = value => '₦' + Number(value || 0).toLocaleString('en-NG', { maximumFractionDigits: 0 });
+  $('go').disabled = true;
+
   function draw() {
     document.querySelectorAll('#seg button').forEach(b => b.classList.toggle('active', b.dataset.t === type));
-    const ok = BC.order.all().filter(o => type === 'return' ? o.status === 'Delivered' : ['Placed', 'Confirmed', 'Packed'].includes(o.status));
-    $('order').innerHTML = ok.length ? ok.map(o => `<option value="${o.id}">#${o.id} · ${BC.naira(o.total)} · ${o.status}</option>`).join('') : '<option value="">No eligible orders</option>';
+    const ok = orders.filter(o => type === 'return' ? o.status === 'Delivered' : ['Placed', 'Confirmed'].includes(o.status));
+    $('order').innerHTML = ok.length ? ok.map(o => `<option value="${esc(o.id)}">#${esc(o.id)} · ${money(o.total)} · ${esc(o.status)}</option>`).join('') : '<option value="">No eligible orders</option>';
     if (qs.get('id') && ok.some(o => o.id === qs.get('id'))) $('order').value = qs.get('id');
     $('reason').innerHTML = REASONS[type].map(r => `<option>${r}</option>`).join('');
     $('itemsBox').classList.toggle('hidden', type !== 'return');
     items(); $('go').disabled = !ok.length;
   }
   function items() {
-    const o = BC.order.all().find(x => x.id === $('order').value);
-    $('items').innerHTML = o && type === 'return' ? o.items.map((i, n) => `<label class="check"><input type="checkbox" value="${n}" checked> ${i.qty} × ${i.name}</label>`).join('') : '';
+    const o = orders.find(x => x.id === $('order').value);
+    $('items').innerHTML = o && type === 'return' ? (o.items || []).map((item, index) => `<label class="check"><input type="checkbox" value="${index}" checked> ${Number(item.qty)} × ${esc(item.name)}</label>`).join('') : '';
   }
   $('seg').addEventListener('click', e => { const b = e.target.closest('button'); if (b) { type = b.dataset.t; draw(); } });
   $('order').addEventListener('change', items);
-  $('form').addEventListener('submit', e => {
+
+  if (!sb) {
+    $('msg').textContent = 'The database connection is unavailable. Please check your Supabase configuration.';
+    draw();
+    return;
+  }
+
+  try {
+    const { data: { session }, error: authError } = await sb.auth.getSession();
+    if (authError) throw authError;
+    user = session && session.user;
+    if (!user) {
+      location.href = 'signin.html';
+      return;
+    }
+
+    const { data, error } = await sb.from('orders')
+      .select('id,status,total,items:order_items(name,qty)').eq('user_id', user.id).order('created_at', { ascending: false });
+    if (error) throw error;
+    orders = data || [];
+    draw();
+  } catch (error) {
+    console.error('Could not load orders for a cancel/return request:', error);
+    $('msg').textContent = error.message || 'Could not load your orders.';
+    draw();
+    $('go').disabled = true;
+  }
+
+  $('form').addEventListener('submit', async e => {
     e.preventDefault();
     if (type === 'return' && !$('items').querySelector('input:checked')) { $('msg').textContent = 'Select at least one item to return.'; return; }
-    // TODO (backend): insert into order_requests (type cancel/return)
-    const req = { id: $('order').value, type, reason: $('reason').value, notes: $('notes').value.trim(), at: new Date().toISOString() };
-    try { const a = JSON.parse(localStorage.getItem('bc_requests')) || []; a.unshift(req); localStorage.setItem('bc_requests', JSON.stringify(a)); } catch (x) {}
-    $('form').classList.add('hidden'); $('done').classList.remove('hidden');
-    $('doneMsg').textContent = (type === 'cancel' ? 'Cancellation' : 'Return') + ' request for #' + req.id + ' has been sent. We will message you here shortly.';
+    const orderId = $('order').value;
+    const order = orders.find(item => item.id === orderId);
+    if (!order) { $('msg').textContent = 'Choose a valid order.'; return; }
+    const selected = type === 'return'
+      ? [...$('items').querySelectorAll('input:checked')].map(input => order.items[Number(input.value)]).filter(Boolean)
+      : [];
+    const details = selected.length ? `Items: ${selected.map(item => `${item.qty} × ${item.name}`).join(', ')}. ` : '';
+    const note = details + $('notes').value.trim();
+    const button = $('go');
+    button.disabled = true;
+    $('msg').textContent = '';
+    try {
+      const { error } = await sb.from('order_requests').insert({
+        order_id: orderId,
+        user_id: user.id,
+        type,
+        reason: $('reason').value,
+        notes: note || null
+      });
+      if (error) throw error;
+      $('form').classList.add('hidden'); $('done').classList.remove('hidden');
+      $('doneMsg').textContent = (type === 'cancel' ? 'Cancellation' : 'Return') + ' request for #' + orderId + ' has been sent. We will message you here shortly.';
+    } catch (error) {
+      console.error('Could not submit cancel/return request:', error);
+      $('msg').textContent = error.message || 'Could not submit this request.';
+      button.disabled = false;
+    }
   });
-  draw();
 });
 </script>
 </body>

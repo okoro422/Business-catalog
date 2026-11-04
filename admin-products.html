@@ -16,7 +16,7 @@
 <script src="supabase-client.js"></script>
 <script src="auth.js"></script><style>
 /* Business Catalog - ONE shared stylesheet for every page */
-:root{
+body{
   --forest-900:#0F2A1D;--forest-800:#17382A;--forest-700:#1F4D36;--forest-600:#2C6B4A;
   --sage-300:#B9CDB9;--mint-200:#CFE8D5;--mint-100:#E8F5EC;--mint-50:#F3FAF5;
   --cream-50:#FBF8F1;--cream-100:#F5F0E4;--cream-200:#EBE3D0;--white:#fff;
@@ -386,6 +386,7 @@ body.admin-body{flex-direction:row}
   ];
   const ADMIN_NAV = [
     ['Dashboard', 'admin-dashboard.html', 'dashboard'], ['Products', 'admin-products.html', 'products'], ['Orders', 'admin-orders.html', 'orders'],
+    ['Credit ledger', 'admin-credit-ledger.html', 'credit'], ['Invoice AI', 'admin-invoice-ai.html', 'invoice'],
     ['Supply', 'admin-supply-requests.html', 'supply'], ['Customers', 'admin-customers.html', 'customers'], ['Inbox', 'admin-inbox.html', 'inbox'],
     ['Reports', 'admin-reports.html', 'reports'], ['Settings', 'admin-delivery-zones.html', 'settings']
   ];
@@ -394,6 +395,7 @@ body.admin-body{flex-direction:row}
     ['Inbox', 'admin-inbox.html', 'inbox', 'fa-regular fa-comment-dots'], ['Products', 'admin-products.html', 'products', 'fa-solid fa-store']
   ];
   const ADMIN_MENU = [
+    ['Credit ledger', 'admin-credit-ledger.html', 'fa-solid fa-credit-card', 'credit'], ['Invoice AI', 'admin-invoice-ai.html', 'fa-solid fa-file-invoice', 'invoice'],
     ['Supply requests', 'admin-supply-requests.html', 'fa-solid fa-file-invoice', 'supply'], ['Customers', 'admin-customers.html', 'fa-regular fa-address-book', 'customers'],
     ['Reports', 'admin-reports.html', 'fa-solid fa-chart-column', 'reports'], ['Delivery zones & settings', 'admin-delivery-zones.html', 'fa-solid fa-truck', 'settings'],
     ['Categories', 'admin-categories.html', 'fa-solid fa-tags', ''], ['Staff and roles', 'admin-staff.html', 'fa-solid fa-user-shield', ''],

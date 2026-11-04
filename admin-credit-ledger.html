@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Credit ledger — Business Catalog Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Fraunces:opsz,wght@9..144,400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="./config.js"></script>
+<script src="supabase-client.js"></script>
+<script src="auth.js"></script>
+<style>
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;background:#FBF8F1;color:#3A4140;font:14px/1.5 'DM Sans',system-ui,sans-serif}
+button,input{font:inherit}
+h1,h2,h3{font-family:'Fraunces',Georgia,serif;color:#1E2321}
+a{color:inherit;text-decoration:none}
+.admin{display:flex;min-height:100vh}
+.side{display:none;width:230px;flex-shrink:0;background:#0F2A1D;color:#fff;padding:22px 0}
+.side .brand{display:block;padding:0 20px 20px;font:700 1.15rem 'Fraunces',Georgia,serif;border-bottom:1px solid #ffffff22}
+.side nav{display:grid;gap:3px;padding:12px 0}
+.side nav a{padding:10px 20px;color:#B9CDB9}
+.side nav a:hover,.side nav a.active{background:#17382A;color:#fff}
+.main{flex:1;min-width:0}
+.top{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:14px 18px;background:#fff;border-bottom:1px solid #EBE3D0}
+.content{max-width:1180px;margin:auto;padding:20px 16px 90px}
+.head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:18px}
+.head p{color:#6B7370;margin-top:4px}
+.metrics{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:18px}
+.metric,.panel{background:#fff;border:1px solid #EBE3D0;border-radius:12px;padding:16px}
+.metric .label{font-size:12px;color:#6B7370}.metric strong{display:block;margin-top:5px;font:700 1.25rem 'Fraunces',Georgia,serif;color:#1E2321}
+.controls{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+.controls input{flex:1;min-width:190px}
+.field{width:100%;padding:10px 12px;border:1px solid #EBE3D0;border-radius:8px;background:#FBF8F1;color:#1E2321}
+.table-wrap{overflow:auto;border:1px solid #EBE3D0;border-radius:12px;background:#fff}
+table{width:100%;min-width:700px;border-collapse:collapse;text-align:left}
+th,td{padding:12px 14px;border-bottom:1px solid #EBE3D0}
+th{font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:#6B7370;background:#FBF8F1}
+tr:last-child td{border-bottom:0}
+.bar{height:6px;min-width:65px;background:#E8F5EC;border-radius:9px;overflow:hidden}
+.bar span{display:block;height:100%;background:#2C6B4A}
+.badge{display:inline-block;padding:4px 9px;border-radius:999px;background:#E8F5EC;color:#1F4D36;font-size:11px;font-weight:700}
+.badge.off{background:#F5F0E4;color:#6B7370}
+.btn{border:1px solid #1F4D36;background:#1F4D36;color:#fff;padding:8px 13px;border-radius:999px;cursor:pointer;font-weight:600}
+.btn.outline{background:#fff;color:#1F4D36}
+.message{padding:22px;text-align:center;color:#6B7370}
+.modal-backdrop{display:none;position:fixed;inset:0;z-index:10;background:#0F2A1D88;align-items:center;justify-content:center;padding:16px}
+.modal-backdrop.open{display:flex}
+.modal{width:min(100%,560px);max-height:90vh;overflow:auto;background:#fff;border-radius:14px;padding:18px}
+.modal-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.modal-grid{display:grid;grid-template-columns:1fr;gap:12px;margin:14px 0}
+.modal-grid label{display:grid;gap:5px;font-size:12px;font-weight:700;color:#6B7370}
+.check{display:flex!important;align-items:center;gap:8px}
+.check input{width:auto}
+.error{color:#B3402F;min-height:18px}
+.ledger{max-height:200px;overflow:auto;margin-top:12px}
+.ledger-row{display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid #EBE3D0}
+.tabbar{position:fixed;bottom:0;left:0;right:0;display:flex;justify-content:space-around;gap:4px;padding:7px 4px calc(7px + env(safe-area-inset-bottom));background:#fff;border-top:1px solid #EBE3D0}
+.tabbar a{display:flex;flex-direction:column;align-items:center;gap:2px;flex:1;color:#6B7370;font-size:10px}.tabbar i{font-size:16px}
+@media(min-width:640px){.metrics{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(min-width:900px){.side{display:block}.top{padding:16px 32px}.content{padding:28px 32px}.tabbar{display:none}.modal-grid{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body data-layout="admin" data-section="customers" data-title="Credit Ledger">
+<div class="admin">
+  <aside class="side"><a class="brand" href="admin-dashboard.html">Business Catalog</a><nav>
+    <a href="admin-dashboard.html">Dashboard</a><a href="admin-products.html">Products</a><a href="admin-orders.html">Orders</a>
+    <a href="admin-supply-requests.html">Supply</a><a href="admin-customers.html">Customers</a><a class="active" href="admin-credit-ledger.html">Credit ledger</a>
+    <a href="admin-invoice-ai.html">Invoice AI</a><a href="admin-inbox.html">Inbox</a><a href="index.html">View store</a>
+  </nav></aside>
+  <div class="main">
+    <header class="top"><strong>Credit Ledger</strong><a href="admin-dashboard.html">Dashboard</a></header>
+    <main class="content">
+      <div class="head"><div><h1>Customer credit</h1><p>Manage limits and record payments or charges.</p></div></div>
+      <section class="metrics" aria-label="Credit summary">
+        <div class="metric"><span class="label">Total credit extended</span><strong id="totalLimit">Loading…</strong></div>
+        <div class="metric"><span class="label">Outstanding balance</span><strong id="totalBalance">Loading…</strong></div>
+        <div class="metric"><span class="label">Credit-enabled customers</span><strong id="enabledCount">—</strong></div>
+      </section>
+      <div class="controls"><input class="field" id="search" type="search" placeholder="Search customer or business"></div>
+      <section class="table-wrap">
+        <table><thead><tr><th>Customer</th><th>Credit limit</th><th>Balance</th><th>Usage</th><th>Credit</th><th></th></tr></thead>
+          <tbody id="rows"><tr><td colspan="6" class="message">Loading customers…</td></tr></tbody>
+        </table>
+      </section>
+      <p class="error" id="pageError" role="alert"></p>
+    </main>
+  </div>
+</div>
+<nav class="tabbar" aria-label="Staff navigation">
+  <a href="admin-dashboard.html"><i class="fa-solid fa-chart-line"></i>Dashboard</a><a href="admin-orders.html"><i class="fa-solid fa-box"></i>Orders</a>
+  <a href="admin-credit-ledger.html"><i class="fa-solid fa-credit-card"></i>Credit</a><a href="admin-invoice-ai.html"><i class="fa-solid fa-file-invoice"></i>Invoice AI</a>
+  <a href="admin-products.html"><i class="fa-solid fa-store"></i>Products</a>
+</nav>
+<div class="modal-backdrop" id="modalBackdrop">
+  <section class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="modal-head"><h2 id="modalTitle">Manage credit</h2><button class="btn outline" id="closeModal" type="button" aria-label="Close">Close</button></div>
+    <p id="customerName" class="muted"></p>
+    <form id="accountForm">
+      <div class="modal-grid">
+        <label>Credit limit (₦)<input class="field" id="creditLimit" type="number" min="0" step="1000" required></label>
+        <label class="check"><input id="creditEnabled" type="checkbox"> Credit enabled</label>
+      </div>
+      <p class="error" id="accountError" role="alert"></p>
+      <button class="btn" type="submit" id="saveAccount">Save account</button>
+    </form>
+    <hr style="border:0;border-top:1px solid #EBE3D0;margin:16px 0">
+    <h3>Record balance change</h3>
+    <form id="adjustForm">
+      <div class="modal-grid">
+        <label>Type<select class="field" id="entryType"><option value="payment">Payment received</option><option value="charge">Credit charge</option></select></label>
+        <label>Amount (₦)<input class="field" id="entryAmount" type="number" min="1" step="1" required></label>
+        <label style="grid-column:1/-1">Reason<input class="field" id="entryReason" maxlength="160" required placeholder="e.g. Order payment received"></label>
+      </div>
+      <p class="error" id="adjustError" role="alert"></p>
+      <button class="btn" type="submit" id="saveAdjustment">Record change</button>
+    </form>
+    <h3 style="margin-top:16px">Recent activity</h3><div class="ledger" id="ledgerRows"><p class="muted">Select a customer to view activity.</p></div>
+  </section>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', async () => {
+  if (typeof checkAuthGuard === 'function') checkAuthGuard();
+  const sb = window.BCLive && window.BCLive.sb;
+  const $ = id => document.getElementById(id);
+  const money = n => '₦' + Number(n || 0).toLocaleString('en-NG', { maximumFractionDigits: 0 });
+  const esc = value => String(value == null ? '' : value).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+  let customers = [];
+  let activeCustomer = null;
+
+  function closeModal() {
+    $('modalBackdrop').classList.remove('open');
+    activeCustomer = null;
+  }
+
+  function render() {
+    const query = $('search').value.trim().toLowerCase();
+    const filtered = customers.filter(customer => `${customer.full_name || ''} ${customer.business_name || ''} ${customer.email || ''}`.toLowerCase().includes(query));
+    $('totalLimit').textContent = money(customers.reduce((sum, item) => sum + Number(item.credit_limit || 0), 0));
+    $('totalBalance').textContent = money(customers.reduce((sum, item) => sum + Number(item.balance || 0), 0));
+    $('enabledCount').textContent = customers.filter(item => item.enabled).length.toLocaleString('en-NG');
+    $('rows').innerHTML = filtered.length ? filtered.map(customer => {
+      const limit = Number(customer.credit_limit || 0);
+      const balance = Number(customer.balance || 0);
+      const usage = limit ? Math.min(100, Math.round(balance / limit * 100)) : 0;
+      return `<tr>
+        <td><strong>${esc(customer.business_name || customer.full_name || 'Customer')}</strong><br><span class="muted">${esc(customer.email || customer.phone || '')}</span></td>
+        <td>${money(limit)}</td><td>${money(balance)}</td>
+        <td><div class="bar" aria-label="${usage}% used"><span style="width:${usage}%"></span></div><small>${usage}%</small></td>
+        <td><span class="badge ${customer.enabled ? '' : 'off'}">${customer.enabled ? 'Enabled' : 'Off'}</span></td>
+        <td><button class="btn outline manage" type="button" data-id="${esc(customer.id)}">Manage</button></td>
+      </tr>`;
+    }).join('') : '<tr><td colspan="6" class="message">No matching customers.</td></tr>';
+  }
+
+  async function loadCustomers() {
+    if (!sb) throw new Error('Supabase client unavailable. Check your connection settings.');
+    const { data: profiles, error: profileError } = await sb.from('profiles')
+      .select('id,full_name,business_name,email,phone,role').in('role', ['customer', 'wholesale']).order('business_name');
+    if (profileError) throw profileError;
+    const ids = (profiles || []).map(profile => profile.id);
+    let accounts = [];
+    if (ids.length) {
+      const { data, error } = await sb.from('customer_credit_accounts').select('customer_id,credit_limit,balance,enabled').in('customer_id', ids);
+      if (error) throw error;
+      accounts = data || [];
+    }
+    const accountMap = new Map(accounts.map(account => [account.customer_id, account]));
+    customers = (profiles || []).map(profile => Object.assign({}, profile, accountMap.get(profile.id) || { credit_limit: 0, balance: 0, enabled: false }));
+    render();
+  }
+
+  async function loadLedger(customerId) {
+    const { data, error } = await sb.from('customer_credit_ledger')
+      .select('entry_type,amount,balance_after,description,created_at,order_id')
+      .eq('customer_id', customerId).order('created_at', { ascending: false }).limit(12);
+    if (error) throw error;
+    $('ledgerRows').innerHTML = data && data.length ? data.map(entry => `
+      <div class="ledger-row"><span><strong>${entry.entry_type === 'payment' ? 'Payment' : 'Charge'}</strong> · ${esc(entry.description)}<br><small class="muted">${new Date(entry.created_at).toLocaleDateString('en-GB')}${entry.order_id ? ' · ' + esc(entry.order_id) : ''}</small></span>
+      <span>${entry.entry_type === 'payment' ? '−' : '+'}${money(entry.amount)}<br><small class="muted">Balance ${money(entry.balance_after)}</small></span></div>`).join('') : '<p class="muted">No credit activity yet.</p>';
+  }
+
+  try {
+    await loadCustomers();
+  } catch (error) {
+    console.error('Could not load credit accounts:', error);
+    $('pageError').textContent = `Could not load credit accounts: ${error.message}`;
+    $('rows').innerHTML = '<tr><td colspan="6" class="message">Credit data could not be loaded.</td></tr>';
+  }
+
+  $('search').addEventListener('input', render);
+  $('rows').addEventListener('click', async event => {
+    const button = event.target.closest('.manage');
+    if (!button) return;
+    activeCustomer = customers.find(customer => customer.id === button.dataset.id);
+    if (!activeCustomer) return;
+    $('customerName').textContent = activeCustomer.business_name || activeCustomer.full_name || activeCustomer.email || 'Customer';
+    $('creditLimit').value = Number(activeCustomer.credit_limit || 0);
+    $('creditEnabled').checked = Boolean(activeCustomer.enabled);
+    $('accountError').textContent = '';
+    $('adjustError').textContent = '';
+    $('entryAmount').value = '';
+    $('entryReason').value = '';
+    $('modalBackdrop').classList.add('open');
+    try {
+      await loadLedger(activeCustomer.id);
+    } catch (error) {
+      console.error('Could not load credit ledger:', error);
+      $('ledgerRows').textContent = `Could not load activity: ${error.message}`;
+    }
+  });
+  $('closeModal').addEventListener('click', closeModal);
+  $('modalBackdrop').addEventListener('click', event => { if (event.target === $('modalBackdrop')) closeModal(); });
+
+  $('accountForm').addEventListener('submit', async event => {
+    event.preventDefault();
+    if (!activeCustomer) return;
+    $('saveAccount').disabled = true;
+    $('accountError').textContent = '';
+    try {
+      const { error } = await sb.rpc('staff_manage_customer_credit', {
+        p_customer_id: activeCustomer.id,
+        p_credit_limit: Number($('creditLimit').value),
+        p_enabled: $('creditEnabled').checked
+      });
+      if (error) throw error;
+      await loadCustomers();
+      activeCustomer = customers.find(customer => customer.id === activeCustomer.id);
+      $('customerName').textContent = activeCustomer.business_name || activeCustomer.full_name || activeCustomer.email || 'Customer';
+      $('accountError').textContent = 'Credit account saved.';
+    } catch (error) {
+      console.error('Could not save credit account:', error);
+      $('accountError').textContent = error.message || 'Could not save credit account.';
+    } finally {
+      $('saveAccount').disabled = false;
+    }
+  });
+
+  $('adjustForm').addEventListener('submit', async event => {
+    event.preventDefault();
+    if (!activeCustomer) return;
+    $('saveAdjustment').disabled = true;
+    $('adjustError').textContent = '';
+    const amount = Number($('entryAmount').value);
+    const delta = $('entryType').value === 'payment' ? -amount : amount;
+    try {
+      const { error } = await sb.rpc('staff_adjust_credit_balance', {
+        p_customer_id: activeCustomer.id,
+        p_delta: delta,
+        p_description: $('entryReason').value.trim(),
+        p_order_id: null
+      });
+      if (error) throw error;
+      await loadCustomers();
+      await loadLedger(activeCustomer.id);
+      $('entryAmount').value = '';
+      $('entryReason').value = '';
+      $('adjustError').textContent = 'Credit activity recorded.';
+    } catch (error) {
+      console.error('Could not record credit activity:', error);
+      $('adjustError').textContent = error.message || 'Could not record this change.';
+    } finally {
+      $('saveAdjustment').disabled = false;
+    }
+  });
+});
+</script>
+</body>
+</html>
