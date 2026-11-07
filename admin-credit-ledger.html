@@ -103,6 +103,15 @@ tr:last-child td{border-bottom:0}
       <div class="modal-grid">
         <label>Credit limit (₦)<input class="field" id="creditLimit" type="number" min="0" step="1000" required></label>
         <label class="check"><input id="creditEnabled" type="checkbox"> Credit enabled</label>
+        <label>Repayment term
+          <select class="field" id="repaymentDays">
+            <option value="7">7 days</option>
+            <option value="14">14 days</option>
+            <option value="30">30 days</option>
+            <option value="60">60 days</option>
+            <option value="90">90 days</option>
+          </select>
+        </label>
       </div>
       <p class="error" id="accountError" role="alert"></p>
       <button class="btn" type="submit" id="saveAccount">Save account</button>
@@ -164,12 +173,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     const ids = (profiles || []).map(profile => profile.id);
     let accounts = [];
     if (ids.length) {
-      const { data, error } = await sb.from('customer_credit_accounts').select('customer_id,credit_limit,balance,enabled').in('customer_id', ids);
+      const { data, error } = await sb.from('customer_credit_accounts').select('customer_id,credit_limit,balance,enabled,repayment_days').in('customer_id', ids);
       if (error) throw error;
       accounts = data || [];
     }
     const accountMap = new Map(accounts.map(account => [account.customer_id, account]));
-    customers = (profiles || []).map(profile => Object.assign({}, profile, accountMap.get(profile.id) || { credit_limit: 0, balance: 0, enabled: false }));
+    customers = (profiles || []).map(profile => Object.assign({}, profile, accountMap.get(profile.id) || { credit_limit: 0, balance: 0, enabled: false, repayment_days: 30 }));
     render();
   }
 
@@ -200,6 +209,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     $('customerName').textContent = activeCustomer.business_name || activeCustomer.full_name || activeCustomer.email || 'Customer';
     $('creditLimit').value = Number(activeCustomer.credit_limit || 0);
     $('creditEnabled').checked = Boolean(activeCustomer.enabled);
+    $('repaymentDays').value = String(activeCustomer.repayment_days || 30);
     $('accountError').textContent = '';
     $('adjustError').textContent = '';
     $('entryAmount').value = '';
@@ -224,7 +234,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       const { error } = await sb.rpc('staff_manage_customer_credit', {
         p_customer_id: activeCustomer.id,
         p_credit_limit: Number($('creditLimit').value),
-        p_enabled: $('creditEnabled').checked
+        p_enabled: $('creditEnabled').checked,
+        p_repayment_days: Number($('repaymentDays').value)
       });
       if (error) throw error;
       await loadCustomers();

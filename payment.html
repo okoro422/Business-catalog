@@ -294,9 +294,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   const M = {
     online: ['Pay online now', 'Card or instant bank transfer'],
     cash: ['Pay on delivery (cash)', 'Pay the rider in cash'],
-    transfer: ['Transfer on delivery', 'Bank transfer at handover']
+    transfer: ['Transfer on delivery', 'Bank transfer at handover'],
+    credit: ['Pay with credit', 'Use your approved customer credit']
   };
   let method = sget('bc_pay_method'); if (!M[method]) method = 'online';
+  let creditAccount = null;
+  let creditLoadError = '';
 
   async function loadProducts() {
     const ids = [...new Set(cart.get().map(l => l.id))];
@@ -338,9 +341,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     `<div class="line"><span>${l.qty} × ${esc(p.name)}${l.mode === 'wholesale' ? ' · wholesale' : ''}</span><strong>${naira(total)}</strong></div>`).join('');
 
   function drawMethods() {
-    $('methods').innerHTML = Object.keys(M).map(k => `<button type="button" class="opt ${k === method ? 'active' : ''}" data-m="${k}"><span><b>${M[k][0]}</b><span class="small muted">${M[k][1]}</span></span><span class="badge ${k === method ? '' : 'gray'}">${k === method ? 'Selected' : 'Choose'}</span></button>`).join('');
+    $('methods').innerHTML = Object.keys(M).map(k => {
+      const available = k !== 'credit' || (creditAccount && creditAccount.enabled);
+      const description = k !== 'credit' ? M[k][1]
+        : creditLoadError ? 'Credit availability could not be checked. Try again.'
+          : available ? `Available credit: ${naira(Number(creditAccount.credit_limit) - Number(creditAccount.balance))}`
+            : 'Credit is not enabled for your account. Contact us for approval.';
+      return `<button type="button" class="opt ${k === method ? 'active' : ''}" data-m="${k}" ${available ? '' : 'disabled'}><span><b>${M[k][0]}</b><span class="small muted">${description}</span></span><span class="badge ${k === method ? '' : 'gray'}">${k === method ? 'Selected' : available ? 'Choose' : 'Unavailable'}</span></button>`;
+    }).join('');
     $('notice').textContent = method === 'online'
       ? 'Pay online by bank transfer using the account details shown during order review.'
+      : method === 'credit'
+        ? `Credit repayment is due ${Number(creditAccount && creditAccount.repayment_days) || 30} days after order placement. Your available credit is checked again securely when you place the order.`
       : 'Cash and transfer orders are confirmed by our team before dispatch.';
   }
   function drawSummary() {
@@ -360,7 +372,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   $('methods').addEventListener('click', e => {
-    const b = e.target.closest('[data-m]'); if (!b) return;
+    const b = e.target.closest('[data-m]'); if (!b || b.disabled) return;
     method = b.dataset.m; sset('bc_pay_method', method); drawMethods();
   });
 
@@ -388,6 +400,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (/UNAVAILABLE/.test(m)) return 'One of your items is no longer available. <a href="cart.html">Review your cart</a>.';
     if (/INVALID_ZONE/.test(m)) return 'That delivery zone is no longer available. <a href="checkout.html">Choose another zone</a>.';
     if (/BAD_DETAILS/.test(m)) return 'Some delivery details look incomplete. <a href="checkout.html">Check your details</a>.';
+    if (/CREDIT_LIMIT_EXCEEDED/i.test(m)) return esc(m.replace(/^.*CREDIT_LIMIT_EXCEEDED:\s*/i, ''));
+    if (/CREDIT_NOT_ENABLED/i.test(m)) return esc(m.replace(/^.*CREDIT_NOT_ENABLED:\s*/i, ''));
     if (/EMPTY_CART|BAD_QTY|BAD_ITEM/.test(m)) return 'Your cart changed. <a href="cart.html">Review your cart</a>.';
     if (err && (err.code === 'PGRST202' || err.code === '42883' || /could not find the function/i.test(m))) {
       console.error('[Payment] place_order() is missing in Supabase. Run the order setup SQL.');
@@ -442,6 +456,16 @@ document.addEventListener('DOMContentLoaded', async () => {
   try { const { data } = await sb.auth.getUser(); user = data && data.user; } catch (e) { console.warn('[Payment] auth check failed', e); }
   if (!user) { gate('fa-lock', 'Sign in to continue', 'Please sign in to finish your order. Your cart will be waiting for you.', '<a class="btn" href="signin.html?next=payment.html">Sign in</a><a class="btn outline" href="cart.html">Back to cart</a>'); return; }
   window.BCPayment.bind($('reviewCard'), sb, user, null);
+  try {
+    const { data, error } = await sb.from('customer_credit_accounts')
+      .select('credit_limit,balance,enabled,repayment_days')
+      .eq('customer_id', user.id).maybeSingle();
+    if (error) throw error;
+    creditAccount = data;
+  } catch (error) {
+    console.error('[Payment] Could not check credit eligibility:', error);
+    creditLoadError = error.message || 'Credit eligibility could not be checked.';
+  }
 
   try { info = JSON.parse(sget('bc_checkout_payload') || 'null') || read('bc_checkout', null); } catch (e) { info = null; }
   if (!info || !info.name || !info.phone || !info.area || !info.street || !info.zone) {
@@ -462,6 +486,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const removed = reconcile();
   if (!cart.get().length) { gate('fa-cart-shopping', 'Your cart is empty', 'The items in your cart are no longer available.', '<a class="btn" href="shop.html">Go to shop</a>'); return; }
   buildLines();
+  drawMethods();
   if (lines.some(x => x.out)) { gate('fa-box-open', 'Some items are out of stock', 'Please remove them from your cart to continue.', '<a class="btn" href="cart.html">Review your cart</a>'); return; }
 
   if (removed) toast(removed + (removed === 1 ? ' item is' : ' items are') + ' no longer available and was removed');

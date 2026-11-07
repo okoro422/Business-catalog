@@ -264,6 +264,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           ${itemsHtml}
           <div class="line"><span>Delivery fee</span><strong>${order.delivery_fee ? naira(order.delivery_fee) : 'Free'}</strong></div>
           <div class="line total"><span>TOTAL</span><strong>${naira(order.total)}</strong></div>
+          ${order.payment_method === 'credit' && order.credit_due_at ? `<div class="line"><span>Credit payment due</span><strong>${new Date(order.credit_due_at + 'T00:00:00').toLocaleDateString('en-GB')}</strong></div>` : ''}
         </div>
         <div class="btn-row">
           <a href="my-orders.html" class="btn">Track order</a>

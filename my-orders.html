@@ -113,6 +113,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       <div class="steps">${STEPS.map((s, i) => `<span class="step ${i <= at ? 'active' : ''}">${i + 1} ${s}</span>`).join('')}</div>
       ${items.map(i => `<div class="line"><span>${i.qty} × ${esc(i.name)}</span><strong>${naira(i.total || i.line_total || i.unit_price * i.qty)}</strong></div>`).join('')}
       <div class="line"><span>Delivery</span><strong>${o.fee ? naira(o.fee) : 'Free'}</strong></div>
+      ${o.payment_method === 'credit' && o.credit_due_at ? `<div class="line"><span>Credit payment due</span><strong>${new Date(o.credit_due_at + 'T00:00:00').toLocaleDateString('en-GB')}</strong></div>` : ''}
       ${window.BCPayment.renderOrderPayment(o)}
       <div class="btn-row" style="margin:0">
         <a class="btn sm outline" href="chat.html">Message us</a>

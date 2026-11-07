@@ -98,6 +98,14 @@ body.has-tabbar{padding-bottom:var(--tabbar)}
 .row-between{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
 .grid{display:grid;gap:16px}
 .grid.metrics{grid-template-columns:repeat(2,1fr)}
+.credit-metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin:14px 0}
+.credit-metric{background:#FBF8F1;border:1px solid #EBE3D0;border-radius:10px;padding:14px}
+.credit-metric span{display:block;color:#6B7370;font-size:12px}
+.credit-metric strong{display:block;margin-top:4px;color:#1E2321;font-size:1.1rem}
+.credit-ledger{display:grid;gap:8px;margin-top:12px}
+.credit-ledger-row{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;padding:12px;border-bottom:1px solid #EBE3D0}
+.credit-ledger-row:last-child{border-bottom:0}
+.badge.off{background:#F5F0E4;color:#6B7370;border-color:#EBE3D0}
 
 /* ---------- Pills, tabs, badges ---------- */
 .tabs{display:flex;background:var(--mint-100);padding:5px;border-radius:var(--r-pill);margin-bottom:20px;overflow-x:auto;gap:4px}
@@ -144,6 +152,7 @@ body.has-tabbar{padding-bottom:var(--tabbar)}
   <div class="tabs" id="tabs">
     <button class="tab active" data-p="pProfile">Profile</button>
     <button class="tab" data-p="pAddr">Addresses</button>
+    <button class="tab" data-p="pCredit">Credit</button>
     <button class="tab" data-p="pWholesale">Wholesale</button>
     <button class="tab" data-p="pSecurity">Security</button>
   </div>
@@ -155,6 +164,25 @@ body.has-tabbar{padding-bottom:var(--tabbar)}
       <div class="field full"><label for="pe">Email (Read-only)</label><input id="pe" type="email" disabled style="background:#e2e8f0;cursor:not-allowed;"></div>
       <div class="full"><button class="btn" type="submit">Save changes</button></div>
     </form>
+  </section>
+
+  <section id="pCredit" class="panel hidden">
+    <div class="card">
+      <div class="row-between"><h2>Customer credit</h2><span class="badge" id="creditState">Loading…</span></div>
+      <p class="muted" id="creditMessage" role="status" style="margin-top:8px">Loading your credit account…</p>
+      <div id="creditAccount" class="hidden">
+        <div class="credit-metrics">
+          <div class="credit-metric"><span>Credit limit</span><strong id="creditLimitValue">—</strong></div>
+          <div class="credit-metric"><span>Current balance</span><strong id="creditBalanceValue">—</strong></div>
+          <div class="credit-metric"><span>Available credit</span><strong id="creditAvailableValue">—</strong></div>
+        </div>
+        <p class="small muted" id="creditTerm"></p>
+      </div>
+    </div>
+    <div class="card" style="margin-top:16px">
+      <h3>Credit statement</h3>
+      <div id="creditLedger" class="credit-ledger"><p class="muted">Loading statement…</p></div>
+    </div>
   </section>
 
   <section id="pAddr" class="panel hidden">
@@ -265,6 +293,7 @@ body.has-tabbar{padding-bottom:var(--tabbar)}
 document.addEventListener('DOMContentLoaded', async () => {
   const $ = id => document.getElementById(id);
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const creditMoney = amount => '₦' + Number(amount || 0).toLocaleString('en-NG', { maximumFractionDigits: 2 });
   const notify = msg => (window.BC && typeof window.BC.toast === 'function') ? window.BC.toast(msg) : alert(msg);
 
   // Sign out
@@ -323,6 +352,57 @@ document.addEventListener('DOMContentLoaded', async () => {
     // 3. Metrics counters (Claude's fix for order count query)
     const { count: oc } = await sb.from('orders').select('*', { count: 'exact', head: true }).eq('user_id', user.id);
     $('mOrders').textContent = oc || 0;
+
+    try {
+      const { data: credit, error: creditError } = await sb.from('customer_credit_accounts')
+        .select('credit_limit,balance,enabled,repayment_days')
+        .eq('customer_id', user.id).maybeSingle();
+      if (creditError) throw creditError;
+
+      const ledgerNode = $('creditLedger');
+      if (!credit) {
+        $('creditState').textContent = 'Not enabled';
+        $('creditState').classList.add('off');
+        $('creditMessage').textContent = 'No credit account is set up for your account. Contact OMAK Store to ask about eligibility.';
+        ledgerNode.innerHTML = '<p class="muted">There is no credit statement yet.</p>';
+      } else {
+        const balance = Number(credit.balance || 0);
+        const limit = Number(credit.credit_limit || 0);
+        $('creditState').textContent = credit.enabled ? 'Enabled' : 'Disabled';
+        $('creditState').classList.toggle('off', !credit.enabled);
+        $('creditMessage').textContent = credit.enabled
+          ? 'Use available credit at checkout. Repay by the due date shown for each charge.'
+          : 'Credit is currently disabled. Contact OMAK Store if you have questions.';
+        $('creditAccount').classList.remove('hidden');
+        $('creditLimitValue').textContent = creditMoney(limit);
+        $('creditBalanceValue').textContent = creditMoney(balance);
+        $('creditAvailableValue').textContent = creditMoney(Math.max(0, limit - balance));
+        $('creditTerm').textContent = `Your repayment term is ${Number(credit.repayment_days) || 30} days from each credit order.`;
+
+        const { data: entries, error: ledgerError } = await sb.from('customer_credit_ledger')
+          .select('entry_type,amount,balance_after,description,created_at,order_id,due_at')
+          .eq('customer_id', user.id).order('created_at', { ascending: false }).limit(50);
+        if (ledgerError) throw ledgerError;
+        ledgerNode.innerHTML = entries && entries.length ? entries.map(entry => {
+          const isPayment = entry.entry_type === 'payment';
+          const due = entry.due_at
+            ? ` · Due ${new Date(entry.due_at + 'T00:00:00').toLocaleDateString('en-GB')}`
+            : '';
+          return `<div class="credit-ledger-row">
+            <span><strong>${isPayment ? 'Repayment' : 'Credit charge'}</strong> · ${esc(entry.description || '')}<br>
+              <small class="muted">${new Date(entry.created_at).toLocaleDateString('en-GB')}${entry.order_id ? ' · Order ' + esc(entry.order_id) : ''}${due}</small></span>
+            <span style="text-align:right;white-space:nowrap">${isPayment ? '−' : '+'}${creditMoney(entry.amount)}<br>
+              <small class="muted">Balance ${creditMoney(entry.balance_after)}</small></span>
+          </div>`;
+        }).join('') : '<p class="muted">No credit activity yet.</p>';
+      }
+    } catch (creditError) {
+      console.error('Could not load customer credit statement:', creditError);
+      $('creditState').textContent = 'Unavailable';
+      $('creditState').classList.add('off');
+      $('creditMessage').textContent = `Could not load your credit information: ${creditError.message || 'Please try again.'}`;
+      $('creditLedger').innerHTML = '<p class="muted">The credit statement could not be loaded.</p>';
+    }
 
     if (window.BC) {
       if (typeof BC.quotes?.all === 'function') $('mQuotes').textContent = BC.quotes.all().length;

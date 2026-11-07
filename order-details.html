@@ -135,6 +135,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         ${Number(order.discount || 0) ? `<div class="line"><span>Discount</span><strong>−${money(order.discount)}</strong></div>` : ''}
         <div class="line"><span>Delivery</span><strong>${Number(order.delivery_fee) ? money(order.delivery_fee) : 'Free'}</strong></div>
         <div class="line total"><span>Total</span><strong>${money(order.total)}</strong></div>
+        ${order.payment_method === 'credit' && order.credit_due_at ? `<div class="line"><span>Credit payment due</span><strong>${new Date(order.credit_due_at + 'T00:00:00').toLocaleDateString('en-GB')}</strong></div>` : ''}
       </section>
       <aside class="card">
         <h2>Delivery</h2><p style="margin:8px 0 18px">${esc(order.area || 'Abuja')} · Zone ${esc(order.zone_code || '—')}</p>
