@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Business Catalog | n8n Invoice Workflow Guide</title>
+<style>
+@page{size:A4;margin:18mm 17mm 19mm}
+*{box-sizing:border-box}body{font:10.2pt/1.5 "Segoe UI",Arial,sans-serif;color:#26332c;margin:0}
+h1,h2,h3{font-family:Georgia,serif;color:#17382a;line-height:1.18}
+h1{font-size:29pt;margin:0 0 12pt}h2{font-size:19pt;margin:0 0 11pt;border-bottom:2px solid #d6e5d8;padding-bottom:7pt}
+h3{font-size:12pt;margin:15pt 0 5pt}p{margin:5pt 0 9pt}
+ul,ol{margin:5pt 0 10pt;padding-left:20pt}li{margin:4pt 0}
+code,pre{font:8.7pt Consolas,monospace}code{background:#f2f5f2;padding:1pt 3pt;border-radius:3pt;overflow-wrap:anywhere}
+pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#f4f7f1;border:1px solid #d6e5d8;border-radius:5pt;padding:9pt;margin:7pt 0 11pt}
+table{width:100%;border-collapse:collapse;font-size:9pt;margin:7pt 0 12pt;break-inside:avoid}
+th{background:#17382a;color:white;text-align:left}td,th{border:1px solid #cdd9cf;padding:6pt;vertical-align:top}
+.cover{min-height:245mm;display:flex;flex-direction:column;justify-content:center;background:#f4f7f1;padding:22mm;border-left:8pt solid #2c6b4a}
+.eyebrow{font-size:10pt;letter-spacing:2pt;text-transform:uppercase;color:#2c6b4a;font-weight:700}.subtitle{font-size:15pt;max-width:450pt;color:#53645a}
+.section{break-before:page}.callout{border-left:4px solid #2c6b4a;background:#f1f6f1;padding:9pt 12pt;margin:10pt 0;break-inside:avoid}
+.warn{border-color:#b3402f;background:#fff1ee}.small{font-size:8.7pt;color:#53645a}
+.flow{border:1px solid #d6e5d8;background:#f7faf6;padding:8pt 10pt;margin:8pt 0;border-radius:5pt}
+@media print{.cover{break-after:page}}
+</style>
+</head>
+<body>
+<section class="cover">
+  <div class="eyebrow">Business Catalog · Automation</div>
+  <h1>n8n Invoice Workflow Guide</h1>
+  <p class="subtitle">How to build and test your own supplier-invoice extraction workflow using the webhook contract already present in the staff page.</p>
+  <p style="margin-top:38pt;color:#53645a">The workflow is not created or enabled by this guide.<br>Use synthetic/test invoices until the security boundary is hardened.</p>
+</section>
+
+<section class="section">
+  <h2>1. What exists today</h2>
+  <p>The staff page <code>admin-invoice-ai.html</code> uploads PDF and image files to the private <code>supplier-invoices</code> Storage bucket (maximum 15 MB), inserts a row in <code>supplier_invoices</code>, and displays the saved invoice status. If the optional URL is configured, staff can trigger the webhook when uploading or re-send an invoice from the invoice list.</p>
+  <p>The URL is read from <code>window.BC_CONFIG.N8N_INVOICE_WEBHOOK_URL</code> in <code>config.js</code>. It is intentionally blank in this project. The browser sends the following JSON body:</p>
+  <pre>{
+  "event": "supplier_invoice.uploaded",
+  "invoice_id": "UUID",
+  "file_name": "supplier-invoice.pdf",
+  "content_type": "application/pdf",
+  "download_url": "short-lived signed URL"
+}</pre>
+  <p>Before sending, the page creates a signed URL valid for 600 seconds and changes the row status to <code>processing</code>. A successful HTTP response only means n8n accepted the request; n8n must still download, extract, validate, and update the database row. The UI expects the workflow to write extraction fields and eventually set the status to <code>processed</code> or <code>failed</code>.</p>
+  <div class="callout warn"><strong>Production security:</strong> This is a static website. A webhook URL placed in <code>config.js</code> is visible to every visitor. Do not put an n8n password, API key, Supabase service-role key, or other secret in that file. Do not connect a public unauthenticated production webhook directly to unrestricted database writes.</div>
+</section>
+
+<section class="section">
+  <h2>2. Build the first workflow in n8n</h2>
+  <p>Start in an n8n development instance with a test webhook and non-sensitive sample invoice. Node names differ slightly between n8n versions; use the equivalent node/action in your installation.</p>
+  <ol>
+    <li><strong>Webhook trigger:</strong> create a POST webhook that accepts JSON. Configure a test URL first, use a unique non-guessable path, and enable the strongest authentication available for your deployment. Set response mode so the browser receives a prompt acknowledgement (HTTP 2xx) after the workflow has safely accepted the job, not after a long OCR run.</li>
+    <li><strong>Validate request:</strong> require <code>event === "supplier_invoice.uploaded"</code>, a valid invoice UUID, and an HTTPS <code>download_url</code>. Reject missing/invalid fields. Apply size/type limits at the processing layer too.</li>
+    <li><strong>Fetch the document promptly:</strong> use an HTTP Request node to GET <code>download_url</code> as binary data. The signed link expires after 10 minutes. Do not log the full URL or place it in public execution logs longer than needed.</li>
+    <li><strong>Extract text/fields:</strong> pass the binary file to your chosen OCR/document extraction service or self-hosted parser. Normalize the provider response into the agreed JSON format below. Treat OCR as untrusted input; amounts, dates, currency, supplier, and invoice number require validation.</li>
+    <li><strong>Validate results:</strong> verify the invoice ID belongs to an expected queued/processing record; validate numeric totals and date formats; reject impossible values. Use an idempotency strategy so retrying the same invoice does not create duplicate accounting entries.</li>
+    <li><strong>Update Supabase securely:</strong> use a server-side credential in n8n's encrypted credential store or a narrowly scoped server-side relay. Update only the matching <code>supplier_invoices</code> row by <code>id</code>; set the extracted fields, JSON payload, status, and <code>updated_at</code>.</li>
+    <li><strong>Error branch:</strong> on download, OCR, validation, or database failure, set status to <code>failed</code> and write a short safe <code>error_message</code>. Do not include secrets or the signed URL in that message. Keep retry behavior bounded.</li>
+  </ol>
+  <div class="flow"><strong>Recommended node chain:</strong> Webhook → Validate/authenticate → Fetch invoice binary → OCR/extract → Normalize and validate → Supabase update → Acknowledge. Add an error branch that records failure and supports a controlled retry.</div>
+</section>
+
+<section class="section">
+  <h2>3. Database fields and result shape</h2>
+  <p>The <code>supplier_invoices</code> table already has fields intended for extracted results. Use the existing column names and preserve the original file and metadata:</p>
+  <table>
+    <tr><th>Column</th><th>Use</th><th>Example</th></tr>
+    <tr><td><code>supplier_name</code></td><td>Supplier or vendor name found in document.</td><td><code>"Sample Wholesale Ltd"</code></td></tr>
+    <tr><td><code>invoice_number</code></td><td>Supplier's invoice identifier.</td><td><code>"INV-2026-001"</code></td></tr>
+    <tr><td><code>invoice_date</code>, <code>due_date</code></td><td>ISO date values or null when uncertain.</td><td><code>"2026-06-14"</code></td></tr>
+    <tr><td><code>currency</code></td><td>Three-letter currency code. The default is NGN; do not silently assume it if the document says otherwise.</td><td><code>"NGN"</code></td></tr>
+    <tr><td><code>subtotal</code>, <code>tax</code>, <code>total</code></td><td>Validated numeric amounts. Preserve correct decimal precision.</td><td><code>125000.00</code></td></tr>
+    <tr><td><code>extracted_data</code></td><td>Optional normalized JSON with line items, confidence, and source notes.</td><td>JSON object</td></tr>
+    <tr><td><code>status</code></td><td>Set to <code>processed</code> only after successful validation; use <code>failed</code> when processing cannot complete.</td><td><code>"processed"</code></td></tr>
+    <tr><td><code>error_message</code></td><td>Short safe explanation on failure; clear it after successful processing.</td><td><code>null</code></td></tr>
+    <tr><td><code>updated_at</code></td><td>UTC timestamp for the latest processing attempt.</td><td>ISO timestamp</td></tr>
+  </table>
+  <p>Example normalized extraction object for <code>extracted_data</code>:</p>
+  <pre>{
+  "schema_version": 1,
+  "supplier_name": "Sample Wholesale Ltd",
+  "invoice_number": "INV-2026-001",
+  "invoice_date": "2026-06-14",
+  "due_date": null,
+  "currency": "NGN",
+  "subtotal": 125000.00,
+  "tax": 0.00,
+  "total": 125000.00,
+  "line_items": [
+    { "description": "Sample item", "quantity": 10, "unit_price": 12500.00, "line_total": 125000.00 }
+  ],
+  "confidence": 0.94,
+  "needs_human_review": false
+}</pre>
+  <p class="small">This result shape is a recommendation for your workflow; it is not a request body currently sent by the website. Do not mark an invoice processed merely because OCR returned text.</p>
+</section>
+
+<section class="section">
+  <h2>4. Secure the browser-to-n8n boundary</h2>
+  <h3>Why a direct webhook URL is not a production secret</h3>
+  <p>Anyone can inspect a static site's JavaScript and network requests. If the frontend calls a webhook directly, a URL token, basic-auth secret, or custom credential shipped with the page can be copied and replayed. CORS is not authentication. A random webhook path reduces casual discovery but does not establish authorization.</p>
+  <h3>Recommended production pattern</h3>
+  <ol>
+    <li>The signed-in staff browser requests invoice processing from a server-side Supabase Edge Function or equivalent trusted API.</li>
+    <li>The server validates the Supabase user JWT and checks the user's <code>profiles.role</code> is <code>staff</code> or <code>owner</code>.</li>
+    <li>The server retrieves the invoice record by ID, checks its storage path and state, and creates a short-lived download URL or streams the file to the automation service.</li>
+    <li>The server authenticates to n8n using a secret stored only in server-side environment/secret storage, or n8n pulls a signed job from the server.</li>
+    <li>n8n writes results using a narrowly controlled server-side credential. Restrict its permissions to supplier invoice updates and never expose service-role credentials to the browser.</li>
+  </ol>
+  <div class="callout"><strong>Keep trust boundaries separate:</strong> n8n's server-side credential is for n8n/server code only. The frontend remains on the public Supabase client and RLS. Avoid granting the browser unrestricted invoice updates merely to make a workflow work.</div>
+  <h3>Current integration caveats</h3>
+  <ul>
+    <li>The current admin page expects a direct HTTP POST to the webhook URL; it does not send an authorization header or signature.</li>
+    <li>The invoice record's RLS allows staff reads/inserts/updates, so a browser user with staff credentials can directly update those allowed fields. Keep staff accounts tightly controlled and consider narrower update policies/a server-only update path before production extraction.</li>
+    <li><code>inject-env.js</code> currently writes Supabase URL/key only; it does not inject <code>N8N_INVOICE_WEBHOOK_URL</code>. A Netlify build may remove a manually set webhook URL from the generated browser config.</li>
+    <li>The signed URL is usable by whoever obtains it until it expires. Avoid sharing it in logs, notifications, or support tickets.</li>
+  </ul>
+</section>
+
+<section class="section">
+  <h2>5. Test, troubleshoot, and operate</h2>
+  <h3>Safe test checklist</h3>
+  <ol>
+    <li>Use n8n's test webhook URL and a non-production Supabase project or isolated test invoice.</li>
+    <li>Upload a synthetic PDF/image with no personal, bank, or supplier-sensitive data.</li>
+    <li>Inspect the webhook body. Confirm the event name, invoice ID, content type, and signed URL are present; do not paste the URL into public logs.</li>
+    <li>Download the file promptly. Confirm it is valid binary content and respects size/type limits.</li>
+    <li>Test both a clean extraction and deliberate failures (bad URL, unsupported content, OCR timeout, malformed totals).</li>
+    <li>Confirm the database row transitions from <code>queued</code> to <code>processing</code> to <code>processed</code> or <code>failed</code>, and that the staff page displays the result.</li>
+    <li>Test duplicate webhook delivery. It should not create duplicate invoice records or repeated accounting side effects.</li>
+    <li>Only after security review, switch to a production webhook/relay and apply limits, monitoring, retention, and alerting.</li>
+  </ol>
+  <table>
+    <tr><th>Symptom</th><th>Likely check</th></tr>
+    <tr><td>Button says workflow not connected</td><td>The URL is blank in the browser configuration. Build/config changes alone do not create an n8n workflow.</td></tr>
+    <tr><td>Upload fails before webhook</td><td>Check signed-in staff role, bucket name, Storage policies, allowed MIME type, 15 MB limit, and <code>supplier_invoices</code> RLS.</td></tr>
+    <tr><td>n8n receives request but no extracted values appear</td><td>Check workflow database update, matching invoice UUID, row status, required column names, and execution errors.</td></tr>
+    <tr><td>Download URL expires</td><td>Fetch the file sooner. The URL currently lasts 600 seconds; request a fresh URL for a retry through the authorized app/server path.</td></tr>
+    <tr><td>Webhook works in test but not production</td><td>Check the active URL, n8n activation, HTTPS/network access, authentication boundary, hosting-generated config, and CORS/network errors.</td></tr>
+  </table>
+  <div class="callout warn"><strong>Before processing real invoices:</strong> Define who may access invoices, retention/deletion rules, OCR provider data handling, error alerting, retry limits, and a human review process for low-confidence or mismatched totals.</div>
+  <p class="small">This guide intentionally leaves n8n workflow creation to the project owner. It does not include credentials or claim that OCR, external providers, or production n8n are configured.</p>
+</section>
+</body>
+</html>

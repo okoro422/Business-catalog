@@ -12,6 +12,7 @@
 <script src="./config.js"></script>
 <script src="supabase-client.js"></script>
 <script src="auth.js"></script>
+<script src="payment-ui.js"></script>
 <style>
 *{box-sizing:border-box}
 body{margin:0;min-height:100vh;display:flex;flex-direction:column;background:#FBF8F1;color:#3A4140;font:14px/1.5 'DM Sans',system-ui,sans-serif}
@@ -29,6 +30,7 @@ h1,h2,h3{font-family:'Fraunces',Georgia,serif;color:#1E2321;line-height:1.2}
 .back{display:inline-flex;gap:8px;align-items:center;color:#6B7370;margin-bottom:16px}
 .layout{display:grid;gap:18px}
 .card{background:#fff;border:1px solid #EBE3D0;border-radius:12px;padding:18px;box-shadow:0 2px 8px rgba(15,42,29,.06)}
+.bank-payment{margin:12px 0}.bank-payment h3{margin-bottom:8px}.bank-account-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,210px),1fr));gap:10px;margin:12px 0}.bank-account{display:grid;gap:6px;padding:14px;border:1px solid #EBE3D0;border-radius:12px;background:#FBF8F1}.bank-account-number{font-size:1.35rem;font-weight:700;letter-spacing:.04em;color:#0F2A1D}.proof-label{display:block;margin:12px 0 6px;font-weight:600}.payment-error{color:#B3402F;margin-top:8px}
 .heading{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap}
 .badge{padding:5px 11px;border-radius:999px;background:#E8F5EC;color:#1F4D36;font-size:12px;font-weight:700}
 .badge.warn{background:#FEF3C7;color:#92400E}
@@ -137,12 +139,14 @@ document.addEventListener('DOMContentLoaded', async () => {
       <aside class="card">
         <h2>Delivery</h2><p style="margin:8px 0 18px">${esc(order.area || 'Abuja')} · Zone ${esc(order.zone_code || '—')}</p>
         <h3>Payment</h3><p class="muted" style="margin:8px 0 18px">${esc(order.payment_method || '—')} · ${esc(paymentStatus)}</p>
+        ${window.BCPayment.renderOrderPayment(order)}
         <div class="actions">
           <button class="btn" type="button" id="printReceipt"><i class="fa-solid fa-file-arrow-down"></i> Download / print receipt</button>
           <button class="btn outline" type="button" id="reorder"><i class="fa-solid fa-rotate"></i> Reorder items</button>
           <a class="btn outline" href="chat.html?order=${encodeURIComponent(order.id)}"><i class="fa-regular fa-comment-dots"></i> Ask about this order</a>
         </div>
       </aside>`;
+    window.BCPayment.bind(root, sb, user, order);
 
     document.getElementById('printReceipt').addEventListener('click', () => window.print());
     document.getElementById('reorder').addEventListener('click', () => {

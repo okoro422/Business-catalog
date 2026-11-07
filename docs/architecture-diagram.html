@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Business Catalog | Architecture Diagrams</title>
+<style>
+@page{size:A4 landscape;margin:15mm}
+*{box-sizing:border-box}body{font:10pt/1.45 "Segoe UI",Arial,sans-serif;color:#26332c;margin:0}
+h1,h2,h3{font-family:Georgia,serif;color:#17382a}h1{font-size:28pt;margin:0 0 8pt}h2{font-size:19pt;margin:0 0 10pt;border-bottom:2px solid #d6e5d8;padding-bottom:6pt}
+p{margin:5pt 0 9pt}section{break-before:page}section:first-child{break-before:auto}
+.cover{min-height:180mm;display:flex;flex-direction:column;justify-content:center;background:#f4f7f1;padding:20mm;border-left:8pt solid #2c6b4a}
+.eyebrow{font-size:10pt;letter-spacing:2pt;text-transform:uppercase;color:#2c6b4a;font-weight:700}
+.sub{font-size:14pt;color:#53645a;max-width:500pt}
+.canvas{border:1px solid #d6e5d8;background:#fbfcfa;border-radius:6pt;padding:8pt;margin:8pt 0}
+svg{width:100%;height:auto;max-height:160mm}svg text{font-family:"Segoe UI",Arial,sans-serif}
+.note{background:#f1f6f1;border-left:4px solid #2c6b4a;padding:8pt 11pt;margin-top:8pt}
+.legend{font-size:8.5pt;color:#53645a}
+@media print{.cover{break-after:page}}
+</style>
+</head>
+<body>
+<section class="cover">
+  <div class="eyebrow">Business Catalog</div>
+  <h1>System Architecture</h1>
+  <p class="sub">Visual reference for the storefront, Supabase services, core data relationships, and the optional invoice-to-n8n workflow.</p>
+  <p style="margin-top:30pt;color:#53645a">Based on the current repository implementation · November 2026</p>
+</section>
+
+<section>
+  <h2>1. Application and service architecture</h2>
+  <p>The website is a set of static pages. Trusted data access is enforced by Supabase policies and database functions, not by hiding the browser's public key.</p>
+  <div class="canvas">
+  <svg viewBox="0 0 1120 600" role="img" aria-label="Browser pages connect to Supabase Auth, Postgres, and private storage. Invoice processing optionally invokes an n8n webhook.">
+    <defs>
+      <marker id="arrow" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto"><path d="M0,0 L10,4 L0,8 Z" fill="#466954"/></marker>
+      <style>
+        .box{rx:12;ry:12;stroke-width:2}.client{fill:#eaf4ec;stroke:#2c6b4a}.svc{fill:#edf3f8;stroke:#52718d}.private{fill:#fff4df;stroke:#bd8a2c}.optional{fill:#f4effa;stroke:#8167a3}
+        .title{font-size:17px;font-weight:700;fill:#17382a}.txt{font-size:13px;fill:#33463a}.tiny{font-size:11px;fill:#53645a}
+        .line{stroke:#466954;stroke-width:2;fill:none;marker-end:url(#arrow)}.dashed{stroke-dasharray:7 6}
+      </style>
+    </defs>
+    <rect class="box client" x="30" y="58" width="270" height="210"/>
+    <text class="title" x="55" y="92">Customer browser</text>
+    <text class="txt" x="55" y="126">Static HTML / CSS / JavaScript</text>
+    <text class="txt" x="55" y="154">Store, cart, checkout, account</text>
+    <text class="txt" x="55" y="182">Supabase JS v2 public client</text>
+    <text class="tiny" x="55" y="222">Publishable key only; RLS remains required</text>
+    <rect class="box client" x="30" y="336" width="270" height="180"/>
+    <text class="title" x="55" y="370">Staff browser</text>
+    <text class="txt" x="55" y="404">Admin pages and operations</text>
+    <text class="txt" x="55" y="432">Staff/owner profile check</text>
+    <text class="txt" x="55" y="460">Invoice upload and dispatch</text>
+    <path class="line" d="M300 153 C365 153 366 154 425 154"/>
+    <path class="line" d="M300 420 C365 420 366 247 425 247"/>
+    <path class="line" d="M300 202 C360 202 365 345 425 345"/>
+    <path class="line" d="M300 461 C363 461 370 381 425 381"/>
+    <rect class="box svc" x="425" y="92" width="280" height="125"/>
+    <text class="title" x="450" y="127">Supabase Auth</text>
+    <text class="txt" x="450" y="158">Sessions · sign-in · signup</text>
+    <text class="txt" x="450" y="184">Profile roles / customer identity</text>
+    <rect class="box svc" x="425" y="270" width="280" height="190"/>
+    <text class="title" x="450" y="306">Supabase Postgres</text>
+    <text class="txt" x="450" y="338">Catalogue · profiles · orders</text>
+    <text class="txt" x="450" y="366">Quotes · chat · notifications</text>
+    <text class="txt" x="450" y="394">Credit · supplier invoice records</text>
+    <text class="tiny" x="450" y="432">RLS policies + transactional RPC functions</text>
+    <rect class="box private" x="425" y="500" width="280" height="78"/>
+    <text class="title" x="450" y="532">Supabase Storage</text>
+    <text class="txt" x="450" y="557">Product images + private uploads</text>
+    <path class="line" d="M705 154 L790 154"/>
+    <path class="line" d="M705 352 L790 352"/>
+    <path class="line" d="M705 539 C755 539 750 405 790 405"/>
+    <rect class="box optional" x="790" y="100" width="285" height="125"/>
+    <text class="title" x="815" y="135">Optional n8n workflow</text>
+    <text class="txt" x="815" y="166">Receive event · fetch invoice</text>
+    <text class="txt" x="815" y="193">Extract fields · update row</text>
+    <path class="line dashed" d="M705 400 C770 400 730 204 790 204"/>
+    <path class="line dashed" d="M790 225 C748 265 760 343 705 343"/>
+    <text class="tiny" x="719" y="283">Webhook metadata + 10-minute URL</text>
+    <text class="tiny" x="721" y="326">Validated results written back</text>
+    <text class="tiny" x="790" y="460">Use a secured server-side relay</text>
+    <text class="tiny" x="790" y="479">before real invoice processing</text>
+  </svg>
+  </div>
+  <p class="legend">Solid arrows: normal app requests. Dashed arrows: optional invoice automation. Supabase RLS and RPC functions are the access-control boundary.</p>
+</section>
+
+<section>
+  <h2>2. Core data relationships</h2>
+  <p>This simplified entity view shows the primary ownership and workflow links. The actual SQL files define additional columns, constraints, indexes, policies, and triggers.</p>
+  <div class="canvas">
+  <svg viewBox="0 0 1120 620" role="img" aria-label="Profiles relate to addresses, orders, quotes, conversations, credit and invoices. Products relate to order items, quote items, tiers and categories.">
+    <defs><marker id="arr2" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto"><path d="M0,0 L10,4 L0,8 Z" fill="#466954"/></marker>
+      <style>
+        .ent{fill:#eaf4ec;stroke:#2c6b4a;stroke-width:2;rx:9}.dat{font:13px "Segoe UI",Arial;fill:#26332c}.head{font:700 15px "Segoe UI",Arial;fill:#17382a}
+        .rel{stroke:#66806d;stroke-width:1.8;fill:none;marker-end:url(#arr2)}.lab{font:11px "Segoe UI",Arial;fill:#53645a}
+      </style>
+    </defs>
+    <g transform="translate(35,42)"><rect class="ent" width="190" height="112"/><text class="head" x="15" y="26">profiles</text><text class="dat" x="15" y="52">id · role · tier</text><text class="dat" x="15" y="76">contact · business</text></g>
+    <g transform="translate(35,246)"><rect class="ent" width="190" height="95"/><text class="head" x="15" y="26">addresses</text><text class="dat" x="15" y="53">user_id → profiles</text><text class="dat" x="15" y="76">saved destinations</text></g>
+    <g transform="translate(325,62)"><rect class="ent" width="210" height="124"/><text class="head" x="15" y="26">orders</text><text class="dat" x="15" y="52">user_id → profiles</text><text class="dat" x="15" y="76">zone · totals · status</text><text class="dat" x="15" y="100">payment status</text></g>
+    <g transform="translate(325,267)"><rect class="ent" width="210" height="102"/><text class="head" x="15" y="26">supply_requests</text><text class="dat" x="15" y="53">user_id → profiles</text><text class="dat" x="15" y="77">quote status · discount</text></g>
+    <g transform="translate(325,462)"><rect class="ent" width="210" height="100"/><text class="head" x="15" y="26">chat_threads</text><text class="dat" x="15" y="53">customer_id → profiles</text><text class="dat" x="15" y="77">messages · unread state</text></g>
+    <g transform="translate(650,55)"><rect class="ent" width="210" height="102"/><text class="head" x="15" y="26">order_items</text><text class="dat" x="15" y="53">order_id → orders</text><text class="dat" x="15" y="77">product_id → products</text></g>
+    <g transform="translate(650,222)"><rect class="ent" width="210" height="102"/><text class="head" x="15" y="26">supply_request_items</text><text class="dat" x="15" y="53">request_id → request</text><text class="dat" x="15" y="77">product · pack · price</text></g>
+    <g transform="translate(650,394)"><rect class="ent" width="210" height="102"/><text class="head" x="15" y="26">products</text><text class="dat" x="15" y="53">category_slug → category</text><text class="dat" x="15" y="77">stock · price · status</text></g>
+    <g transform="translate(910,55)"><rect class="ent" width="175" height="92"/><text class="head" x="14" y="26">credit ledger</text><text class="dat" x="14" y="53">customer_id</text><text class="dat" x="14" y="75">balance history</text></g>
+    <g transform="translate(910,204)"><rect class="ent" width="175" height="92"/><text class="head" x="14" y="26">supplier_invoices</text><text class="dat" x="14" y="53">uploaded_by</text><text class="dat" x="14" y="75">extraction status</text></g>
+    <g transform="translate(910,362)"><rect class="ent" width="175" height="92"/><text class="head" x="14" y="26">categories</text><text class="dat" x="14" y="53">parent_slug</text><text class="dat" x="14" y="75">product grouping</text></g>
+    <path class="rel" d="M225 95 L325 112"/><text class="lab" x="243" y="91">1 : many</text>
+    <path class="rel" d="M130 154 L130 246"/><text class="lab" x="139" y="208">1 : many</text>
+    <path class="rel" d="M225 121 C280 160 273 305 325 315"/>
+    <path class="rel" d="M225 135 C273 220 272 503 325 511"/>
+    <path class="rel" d="M535 122 L650 104"/><path class="rel" d="M535 317 L650 273"/>
+    <path class="rel" d="M755 157 L755 394"/><text class="lab" x="765" y="280">product</text>
+    <path class="rel" d="M860 444 L910 408"/><text class="lab" x="866" y="420">category</text>
+    <path class="rel" d="M225 62 C500 12 770 12 910 92"/><text class="lab" x="691" y="35">customer_id</text>
+    <path class="rel" d="M225 75 C510 130 752 170 910 250"/><text class="lab" x="758" y="184">uploaded_by</text>
+  </svg>
+  </div>
+  <p class="legend">Not every table is shown. See <code>supabase-schema.txt</code>, <code>supabase-fixes.sql</code>, and <code>supabase-remaining-features.sql</code> for the full definitions.</p>
+</section>
+
+<section>
+  <h2>3. Order and invoice processing sequences</h2>
+  <div class="canvas">
+  <svg viewBox="0 0 1120 570" role="img" aria-label="Order sequence: customer signs in, places order, RPC validates and saves order, receipt is shown. Invoice sequence: staff uploads, signed URL is sent to n8n, OCR extracts and updates the database.">
+    <defs><marker id="arr3" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto"><path d="M0,0 L10,4 L0,8 Z" fill="#466954"/></marker>
+      <style>.lane{fill:#f4f7f1;stroke:#b7c8b9;stroke-width:1.5;rx:10}.step{fill:#fff;stroke:#2c6b4a;stroke-width:1.8;rx:9}.opt{fill:#f5f0fa;stroke:#8167a3;stroke-width:1.8;rx:9}.t{font:700 14px "Segoe UI",Arial;fill:#17382a}.s{font:12px "Segoe UI",Arial;fill:#33463a}.a{stroke:#466954;stroke-width:2;fill:none;marker-end:url(#arr3)}</style>
+    </defs>
+    <text class="t" x="28" y="32">Order: server-authoritative totals</text>
+    <rect class="lane" x="25" y="48" width="1070" height="190"/>
+    <rect class="step" x="52" y="104" width="190" height="82"/><text class="t" x="70" y="136">Customer checkout</text><text class="s" x="70" y="160">items + delivery</text>
+    <rect class="step" x="315" y="104" width="205" height="82"/><text class="t" x="333" y="136">place_order RPC</text><text class="s" x="333" y="160">validate user / input</text>
+    <rect class="step" x="590" y="104" width="215" height="82"/><text class="t" x="608" y="136">Postgres transaction</text><text class="s" x="608" y="160">price, stock, totals</text>
+    <rect class="step" x="884" y="104" width="182" height="82"/><text class="t" x="902" y="136">Order receipt</text><text class="s" x="902" y="160">stored order ID</text>
+    <path class="a" d="M242 145 L315 145"/><path class="a" d="M520 145 L590 145"/><path class="a" d="M805 145 L884 145"/>
+    <text class="t" x="28" y="284">Supplier invoice: optional n8n automation</text>
+    <rect class="lane" x="25" y="300" width="1070" height="230"/>
+    <rect class="step" x="47" y="371" width="190" height="92"/><text class="t" x="65" y="402">Staff upload</text><text class="s" x="65" y="426">private file + DB row</text>
+    <rect class="step" x="294" y="371" width="205" height="92"/><text class="t" x="311" y="402">Admin invoice page</text><text class="s" x="311" y="426">signed URL (10 min)</text>
+    <rect class="opt" x="565" y="371" width="208" height="92"/><text class="t" x="584" y="402">n8n workflow</text><text class="s" x="584" y="426">download · OCR · validate</text>
+    <rect class="step" x="840" y="371" width="225" height="92"/><text class="t" x="859" y="402">supplier_invoices row</text><text class="s" x="859" y="426">processed or failed</text>
+    <path class="a" d="M237 417 L294 417"/><path class="a" d="M499 417 L565 417"/><path class="a" d="M773 417 L840 417"/>
+    <text class="s" x="299" y="491">Current UI contract: supplier_invoice.uploaded</text>
+  </svg>
+  </div>
+  <div class="note"><strong>Boundary to secure:</strong> A webhook URL embedded in a public static page is discoverable. Before processing genuine invoices, place an authenticated server-side function/proxy between the browser and n8n; keep private credentials in server-side secret storage.</div>
+</section>
+</body>
+</html>

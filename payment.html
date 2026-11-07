@@ -14,6 +14,7 @@
 <!-- 3. Backend logic NEXT -->
 <script src="supabase-client.js"></script>
 <script src="auth.js"></script>
+<script src="payment-ui.js"></script>
 
 <style>
 :root{
@@ -83,6 +84,7 @@ body.has-tabbar{padding-bottom:var(--tabbar)}
 .btn:disabled{opacity:.45;cursor:not-allowed}
 .btn.outline{background:transparent;color:var(--forest-700)}.btn.outline:hover{background:var(--mint-100)}
 .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-md);padding:20px;box-shadow:var(--shadow-1)}
+.bank-payment{margin:12px 0}.bank-payment h3{margin-bottom:8px}.bank-account-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,210px),1fr));gap:10px;margin:12px 0}.bank-account{display:grid;gap:6px;padding:14px;border:1px solid var(--border);border-radius:var(--r-md);background:var(--cream-50)}.bank-account-number{font-size:1.35rem;font-weight:700;letter-spacing:.04em;color:var(--forest-900)}.proof-label{display:block;margin:12px 0 6px;font-weight:600}.payment-error{color:var(--danger);margin-top:8px}
 .stack{display:flex;flex-direction:column;gap:16px}
 .split{display:grid;gap:24px;grid-template-columns:1fr}
 .empty{text-align:center;padding:48px 16px;color:var(--ink-500)}
@@ -338,7 +340,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   function drawMethods() {
     $('methods').innerHTML = Object.keys(M).map(k => `<button type="button" class="opt ${k === method ? 'active' : ''}" data-m="${k}"><span><b>${M[k][0]}</b><span class="small muted">${M[k][1]}</span></span><span class="badge ${k === method ? '' : 'gray'}">${k === method ? 'Selected' : 'Choose'}</span></button>`).join('');
     $('notice').textContent = method === 'online'
-      ? 'You will complete your card or bank transfer payment securely after placing the order.'
+      ? 'Pay online by bank transfer using the account details shown during order review.'
       : 'Cash and transfer orders are confirmed by our team before dispatch.';
   }
   function drawSummary() {
@@ -371,7 +373,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       <div class="line"><span>Address</span><strong>${esc(info.street)}${info.landmark ? ' (' + esc(info.landmark) + ')' : ''}</strong></div>
       <div class="line"><span>Payment</span><strong>${M[method][0]}</strong></div>` +
       rowsHtml() +
-      `<div class="line total"><span>Total</span><span>${naira(total)}</span></div>`;
+      `<div class="line total"><span>Total</span><span>${naira(total)}</span></div>` +
+      (method === 'online' ? window.BCPayment.renderAccounts(total, null) : '');
     go(true);
   });
   $('back').addEventListener('click', () => go(false));
@@ -438,6 +441,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   try { const { data } = await sb.auth.getUser(); user = data && data.user; } catch (e) { console.warn('[Payment] auth check failed', e); }
   if (!user) { gate('fa-lock', 'Sign in to continue', 'Please sign in to finish your order. Your cart will be waiting for you.', '<a class="btn" href="signin.html?next=payment.html">Sign in</a><a class="btn outline" href="cart.html">Back to cart</a>'); return; }
+  window.BCPayment.bind($('reviewCard'), sb, user, null);
 
   try { info = JSON.parse(sget('bc_checkout_payload') || 'null') || read('bc_checkout', null); } catch (e) { info = null; }
   if (!info || !info.name || !info.phone || !info.area || !info.street || !info.zone) {

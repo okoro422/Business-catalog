@@ -153,9 +153,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     let currentStatus = (order.status === 'New' ? 'Placed' : order.status) || 'Placed';
     let internalNote = order.internal_note || '';
     let assignedRider = order.rider || '';
+    let paymentProofUrl = '';
+    if (order.payment_proof_path) {
+      const { data: proof, error: proofError } = await sb.storage.from('payment-proofs').createSignedUrl(order.payment_proof_path, 3600);
+      if (proofError) throw new Error('Could not access payment proof: ' + proofError.message);
+      paymentProofUrl = proof && proof.signedUrl || '';
+    }
 
     function draw() {
       const at = STATUSES.indexOf(currentStatus);
+      const paymentStatus = String(order.payment_status || 'pending').toLowerCase();
       const itemRows = (items || []).map(i => {
         const qty = i.qty || 1;
         const lineTotal = i.line_total != null ? i.line_total : (i.unit_price || 0) * qty;
@@ -183,7 +190,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             <div class="card stack" style="gap:4px">
               <strong>${esc(order.customer_name || order.customer || 'Customer')} · ${esc(order.tier || 'Retail')}</strong>
               <span>Zone ${esc(order.zone_code || order.zone || 'A')} · ${esc(order.area || '')}</span>
-              <span>Payment: ${esc(order.payment_method || order.pay || 'Online')}</span>
+              <span>Payment: ${esc(order.payment_method || order.pay || 'Online')} · ${esc(paymentStatus)}</span>
               <div class="field" style="margin-top:8px">
                 <label for="rider">Assigned Rider</label>
                 <select id="rider">
@@ -191,6 +198,13 @@ document.addEventListener('DOMContentLoaded', async () => {
                   ${['Musa', 'Emeka', 'Yusuf'].map(r => `<option ${assignedRider === r ? 'selected' : ''}>${esc(r)}</option>`).join('')}
                 </select>
               </div>
+            </div>
+            <div class="card stack">
+              <h2>Payment verification</h2>
+              <p>Payment status: <strong>${esc(paymentStatus)}</strong></p>
+              ${paymentProofUrl ? `<a class="btn outline" href="${esc(paymentProofUrl)}" target="_blank" rel="noopener">View proof of payment</a>` : '<p class="muted">No proof of payment uploaded.</p>'}
+              ${order.payment_rejection_reason ? `<p class="text-danger">Rejection reason: ${esc(order.payment_rejection_reason)}</p>` : ''}
+              ${paymentStatus === 'awaiting_confirmation' ? '<div class="btn-row"><button class="btn" type="button" id="markPaymentPaid">Mark paid</button><button class="btn outline" type="button" id="rejectPayment">Reject payment</button></div>' : ''}
             </div>
           </div>
           <div class="stack" style="gap:12px">
@@ -239,12 +253,49 @@ document.addEventListener('DOMContentLoaded', async () => {
         assignedRider = rider;
         toast('Rider assigned successfully!');
       };
+
+      const paidButton = document.getElementById('markPaymentPaid');
+      if (paidButton) paidButton.onclick = () => reviewPayment('paid');
+      const rejectButton = document.getElementById('rejectPayment');
+      if (rejectButton) rejectButton.onclick = () => reviewPayment('rejected');
+    }
+
+    async function reviewPayment(decision) {
+      let reason = null;
+      if (decision === 'rejected') {
+        reason = window.prompt('Why is this payment being rejected?');
+        if (reason === null) return;
+        if (!reason.trim()) {
+          toast('Enter a reason before rejecting this payment.');
+          return;
+        }
+      }
+      if (!window.confirm(decision === 'paid' ? 'Confirm this payment as paid?' : 'Reject this payment?')) return;
+      const button = document.getElementById(decision === 'paid' ? 'markPaymentPaid' : 'rejectPayment');
+      if (button) { button.disabled = true; button.textContent = 'Saving…'; }
+      try {
+        const { error } = await sb.rpc('review_order_payment', {
+          p_order_id: orderId,
+          p_decision: decision,
+          p_reason: reason
+        });
+        if (error) throw error;
+      } catch (error) {
+        toast('Could not update payment: ' + error.message);
+        draw();
+        return;
+      }
+      order.payment_status = decision;
+      order.payment_reviewed_at = new Date().toISOString();
+      order.payment_rejection_reason = decision === 'rejected' ? reason.trim() : null;
+      toast(decision === 'paid' ? 'Payment marked as paid. Customer notified.' : 'Payment rejected. Customer notified.');
+      draw();
     }
 
     draw();
   } catch (err) {
     console.error('Error loading order details:', err);
-    root.innerHTML = '<div class="empty"><h2>Could not load order details</h2><a class="btn" href="admin-orders.html">Back to Orders</a></div>';
+    root.innerHTML = `<div class="empty"><h2>Could not load order details</h2><p>${esc(err.message || 'Please try again.')}</p><a class="btn" href="admin-orders.html">Back to Orders</a></div>`;
   }
 });
 </script>

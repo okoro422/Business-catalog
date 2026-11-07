@@ -16,6 +16,7 @@
 <!-- 3. Load your Backend / Supabase logic NEXT -->
 <script src="supabase-client.js"></script>
 <script src="auth.js"></script>
+<script src="payment-ui.js"></script>
 
 <style>
 :root{
@@ -84,6 +85,7 @@ body.has-tabbar{padding-bottom:var(--tabbar)}
 .btn:hover{background:var(--forest-800)}
 .btn.outline{background:transparent;color:var(--forest-700)}.btn.outline:hover{background:var(--mint-100)}
 .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-md);padding:20px;box-shadow:var(--shadow-1)}
+.bank-payment{margin:12px 0}.bank-payment h3{margin-bottom:8px}.bank-account-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,210px),1fr));gap:10px;margin:12px 0}.bank-account{display:grid;gap:6px;padding:14px;border:1px solid var(--border);border-radius:var(--r-md);background:var(--cream-50)}.bank-account-number{font-size:1.35rem;font-weight:700;letter-spacing:.04em;color:var(--forest-900)}.proof-label{display:block;margin:12px 0 6px;font-weight:600}.payment-error{color:var(--danger);margin-top:8px}
 .stack{display:flex;flex-direction:column;gap:16px}
 .split{display:grid;gap:24px;grid-template-columns:1fr}
 .empty{text-align:center;padding:48px 16px;color:var(--ink-500)}
@@ -241,7 +243,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-  const PAY = { online: 'Online payment (pending)', cash: 'Cash on delivery (pending)', transfer: 'Transfer on delivery (pending)' };
+  const PAY = { online: 'Online payment / bank transfer', cash: 'Cash on delivery', transfer: 'Transfer on delivery' };
   
   const orderDate = new Date(order.created_at || order.date || Date.now()).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
   const steps = ['Placed', 'Confirmed', 'Packed', 'Out for delivery', 'Delivered'];
@@ -257,7 +259,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       <div>
         <div class="card stack" style="gap:2px">
           <div class="line"><span>Order #${String(order.id).slice(0, 8)} · ${orderDate}</span></div>
-          <div class="line"><span>Payment</span><strong>${PAY[order.payment_method] || esc(order.payment_method)}</strong></div>
+          <div class="line"><span>Payment</span><strong>${PAY[order.payment_method] || esc(order.payment_method)} · ${esc(order.payment_status || 'pending')}</strong></div>
           <div class="line"><span>Delivery</span><strong>${esc(order.zone)} · ${esc(order.area)}</strong></div>
           ${itemsHtml}
           <div class="line"><span>Delivery fee</span><strong>${order.delivery_fee ? naira(order.delivery_fee) : 'Free'}</strong></div>
@@ -271,7 +273,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         </div>
       </div>
       <aside class="card track">${(() => { const cur = Math.max(0, steps.indexOf(order.status === 'New' ? 'Placed' : order.status)); return steps.map((s, i) => `<div class="${i <= cur ? 'on' : ''}"><i class="fa-${i <= cur ? 'solid fa-circle-check' : 'regular fa-circle'}"></i> ${i + 1} ${s}</div>`).join(''); })()}</aside>
-    </div>`;
+    </div>
+    ${window.BCPayment.renderOrderPayment(order)}`;
+  window.BCPayment.bind(root, sb, user, order);
 });
 </script>
 </body>

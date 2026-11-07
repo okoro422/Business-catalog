@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Business Catalog | Project Handbook</title>
+<style>
+@page{size:A4;margin:18mm 17mm 19mm}
+*{box-sizing:border-box}
+body{font:10.3pt/1.5 "Segoe UI",Arial,sans-serif;color:#26332c;margin:0}
+h1,h2,h3{font-family:Georgia,serif;color:#17382a;line-height:1.18}
+h1{font-size:30pt;margin:0 0 12pt}h2{font-size:19pt;margin:0 0 12pt;border-bottom:2px solid #d6e5d8;padding-bottom:7pt}
+h3{font-size:12pt;margin:15pt 0 5pt}
+p{margin:5pt 0 9pt}ul,ol{margin:5pt 0 10pt;padding-left:20pt}
+li{margin:3pt 0}code{font:9pt Consolas,monospace;background:#f2f5f2;padding:1pt 3pt;border-radius:3pt;overflow-wrap:anywhere}
+table{width:100%;border-collapse:collapse;font-size:9pt;margin:7pt 0 13pt;break-inside:avoid}
+th{background:#17382a;color:white;text-align:left}td,th{border:1px solid #cdd9cf;padding:6pt;vertical-align:top}
+.cover{min-height:245mm;display:flex;flex-direction:column;justify-content:center;background:#f4f7f1;padding:22mm;border-left:8pt solid #2c6b4a}
+.cover .eyebrow{font-size:10pt;letter-spacing:2pt;text-transform:uppercase;color:#2c6b4a;font-weight:700}
+.cover .subtitle{font-size:15pt;max-width:440pt;color:#53645a}
+.cover .meta{margin-top:42pt;color:#53645a}
+.section{break-before:page}
+.callout{border-left:4px solid #2c6b4a;background:#f1f6f1;padding:9pt 12pt;margin:10pt 0;break-inside:avoid}
+.warn{border-color:#c98a1b;background:#fff8e8}.small{font-size:8.7pt;color:#53645a}
+.tag{display:inline-block;background:#e8f5ec;color:#1f4d36;padding:2pt 6pt;border-radius:12pt;font-size:8pt}
+.flow{padding:10pt;background:#f4f7f1;border:1px solid #d6e5d8;border-radius:6pt;margin:8pt 0}
+.toc li{margin:7pt 0}
+@media print{a{color:inherit;text-decoration:none}.cover{break-after:page}}
+</style>
+</head>
+<body>
+<section class="cover">
+  <div class="eyebrow">Business Catalog</div>
+  <h1>Project Handbook</h1>
+  <p class="subtitle">A practical guide to the storefront, staff tools, Supabase database, setup, operations, deployment, and readiness checks.</p>
+  <p class="meta">Prepared from the project files in this repository<br>Documentation edition · November 2026</p>
+</section>
+
+<section class="section">
+  <h2>Contents</h2>
+  <ol class="toc">
+    <li>Project at a glance</li>
+    <li>How the application is organized</li>
+    <li>Store and staff features</li>
+    <li>Supabase data model and security</li>
+    <li>Initial setup and SQL installation</li>
+    <li>Configuration and deployment</li>
+    <li>Routine operation and testing</li>
+    <li>Current limitations and launch checklist</li>
+  </ol>
+  <div class="callout"><strong>Important:</strong> This handbook documents the implementation currently present in the repository. It does not claim that SQL has been run on a live Supabase project, that n8n is configured, or that a payment gateway is connected.</div>
+</section>
+
+<section class="section">
+  <h2>1. Project at a glance</h2>
+  <p>Business Catalog is a mobile-first online catalogue and ordering application for cosmetics, toiletries, and wholesale supply. It is designed around the Nigerian Naira (NGN) and delivery zones configured in Supabase.</p>
+  <table>
+    <tr><th>Area</th><th>Current implementation</th></tr>
+    <tr><td>Frontend</td><td>Multiple standalone HTML pages with page-level CSS and vanilla JavaScript; no frontend framework or package manifest is present.</td></tr>
+    <tr><td>Backend services</td><td>Supabase Auth, Postgres with Row Level Security (RLS), and Supabase Storage via the Supabase JavaScript v2 CDN.</td></tr>
+    <tr><td>Shared browser code</td><td><code>backend.js</code> loads live catalogue and customer/staff data and performs role-aware initialization. <code>supabase-client.js</code> initializes the client; <code>auth.js</code> provides auth helpers.</td></tr>
+    <tr><td>Deployment</td><td>Netlify configuration exists. The site can also be hosted as static files, but the older GitHub Pages notes do not match the current root-level file structure in every detail.</td></tr>
+    <tr><td>Automation</td><td>An invoice upload page can POST to an optional n8n webhook. The webhook setting is blank and the workflow itself is intentionally not included.</td></tr>
+  </table>
+  <h3>Repository map</h3>
+  <div class="flow"><strong>Customer pages:</strong> <code>index.html</code>, <code>shop.html</code>, <code>product-details.html</code>, <code>cart.html</code>, <code>checkout.html</code>, <code>payment.html</code>, <code>receipt.html</code>, <code>my-orders.html</code>, <code>order-details.html</code>, <code>my-quotes.html</code>, <code>supply-request.html</code>, <code>wholesale.html</code>, <code>wishlist.html</code>, <code>chat.html</code>, <code>notifications.html</code>, <code>support.html</code>, <code>account.html</code>, <code>cancel-order.html</code>, <code>signin.html</code>, <code>register.html</code>, <code>404.html</code>.</div>
+  <div class="flow"><strong>Staff pages:</strong> <code>staff-login.html</code>, <code>admin-dashboard.html</code>, <code>admin-products.html</code>, <code>admin-edit-product.html</code>, <code>admin-orders.html</code>, <code>admin-order-details.html</code>, <code>admin-invoice.html</code>, <code>admin-invoice-ai.html</code>, <code>admin-supply-requests.html</code>, <code>admin-supply-quote.html</code>, <code>admin-customers.html</code>, <code>admin-customer-details.html</code>, <code>admin-credit-ledger.html</code>, <code>admin-inbox.html</code>, <code>admin-reports.html</code>, <code>admin-categories.html</code>, <code>admin-delivery-zones.html</code>, <code>admin-staff.html</code>, <code>admin-activity-log.html</code>.</div>
+  <p><strong>Shared/runtime files:</strong> <code>config.js</code>, <code>supabase-client.js</code>, <code>auth.js</code>, <code>backend.js</code>, <code>inject-env.js</code>, and <code>netlify.toml</code>.</p>
+</section>
+
+<section class="section">
+  <h2>2. How the application is organized</h2>
+  <ol>
+    <li>A browser opens a static HTML page from the site host.</li>
+    <li>The page loads Supabase JS v2, the public browser configuration, and shared client/auth/backend code.</li>
+    <li>The browser uses the signed-in Supabase session for customer or staff requests. Public catalogue reads use the public client.</li>
+    <li>Postgres RLS policies enforce which rows the signed-in user may read or change. Key operations such as placing orders and changing credit balances use database functions.</li>
+    <li>Private uploads are stored in Supabase Storage and accessed using authenticated policies or short-lived signed URLs.</li>
+    <li>When a webhook URL is configured, the invoice screen sends invoice metadata and a short-lived file URL to n8n.</li>
+  </ol>
+  <h3>Shared files</h3>
+  <table>
+    <tr><th>File</th><th>Purpose</th></tr>
+    <tr><td><code>config.js</code></td><td>Browser-visible Supabase URL, publishable/anon key, and currently blank n8n webhook URL.</td></tr>
+    <tr><td><code>supabase-client.js</code></td><td>Creates and exposes the Supabase browser client as <code>BCLive.sb</code>.</td></tr>
+    <tr><td><code>auth.js</code></td><td>Signup, sign-in, sign-out, and staff access helpers.</td></tr>
+    <tr><td><code>backend.js</code></td><td>Fetches catalogue and account data, maps records for pages, and initializes customer/staff pages.</td></tr>
+    <tr><td><code>inject-env.js</code></td><td>Netlify build helper; requires Supabase URL and public key environment variables and writes generated public configuration.</td></tr>
+  </table>
+  <div class="callout warn"><strong>Browser configuration is public.</strong> Anything in HTML or JavaScript shipped to the browser can be inspected. A Supabase publishable/anon key is intended for public clients and must be protected by correct RLS. Never place a Supabase service-role key, database password, or private n8n credential in <code>config.js</code>.</div>
+</section>
+
+<section class="section">
+  <h2>3. Store and staff features</h2>
+  <h3>Customer experience</h3>
+  <ul>
+    <li>Browse and search products, view richer product information, availability, and configured wholesale tiers.</li>
+    <li>Maintain a cart and submit an order after signing in; database logic validates stock and recalculates the price.</li>
+    <li>Review orders, order details, receipts, and submit a cancellation or return request.</li>
+    <li>Save products, manage the account, request wholesale quotations, accept an eligible quote, and view notifications or support messages.</li>
+  </ul>
+  <h3>Staff experience</h3>
+  <ul>
+    <li>Manage products, categories, delivery zones, orders, customer records, reports, staff, and activity.</li>
+    <li>Review supply requests and create quotations; accepted, priced quotes can be converted to orders.</li>
+    <li>View and update a customer credit account through staff-only database functions with a ledger trail.</li>
+    <li>Upload supplier invoices to private storage, inspect their status, and optionally dispatch them to n8n for extraction.</li>
+  </ul>
+  <h3>Checkout and payment status</h3>
+  <p>The checkout supports the stored payment-method values <code>online</code>, <code>cash</code>, and <code>transfer</code>. The order RPC creates an order with payment status <code>pending</code>. A payment gateway, card charging flow, and automated payment verification are not implemented in the inspected checkout. Do not treat selecting “online” as proof that a payment was collected.</p>
+</section>
+
+<section class="section">
+  <h2>4. Supabase data model and security</h2>
+  <table>
+    <tr><th>Data area</th><th>Tables / records</th><th>Purpose</th></tr>
+    <tr><td>People</td><td><code>profiles</code>, <code>addresses</code></td><td>Auth-linked profile, customer/business details, role and tier.</td></tr>
+    <tr><td>Catalogue</td><td><code>categories</code>, <code>products</code>, <code>product_tiers</code>, <code>delivery_zones</code></td><td>Products, inventory, product details, bulk prices, and delivery fees.</td></tr>
+    <tr><td>Orders</td><td><code>orders</code>, <code>order_items</code>, <code>order_requests</code></td><td>Order totals, line items, and cancellation/return requests.</td></tr>
+    <tr><td>Wholesale</td><td><code>supply_requests</code>, <code>supply_request_items</code>, <code>supply_request_attachments</code></td><td>Customer requests, staff quotations, quote conversion, and supporting files.</td></tr>
+    <tr><td>Engagement</td><td><code>wishlist</code>, <code>chat_threads</code>, <code>messages</code>, <code>notifications</code></td><td>Saved products, conversations, and customer notifications.</td></tr>
+    <tr><td>Staff operations</td><td><code>activity_log</code>, <code>settings</code>, <code>customer_notes</code></td><td>Administrative records, settings, and internal customer notes.</td></tr>
+    <tr><td>Credit and invoices</td><td><code>customer_credit_accounts</code>, <code>customer_credit_ledger</code>, <code>supplier_invoices</code></td><td>Staff-managed credit balances and supplier invoice extraction records.</td></tr>
+  </table>
+  <h3>Important database functions</h3>
+  <ul>
+    <li><code>place_order(...)</code> validates items and stock, reads current prices and wholesale tiers, computes delivery, decrements stock, and creates the order.</li>
+    <li><code>submit_supply_request(...)</code> validates a signed-in customer's business request and its line items.</li>
+    <li><code>convert_supply_quote_to_order(...)</code> converts the signed-in customer's eligible quote to an order once and stores the resulting order ID.</li>
+    <li><code>staff_manage_customer_credit(...)</code> creates or updates a credit limit and enabled state after checking staff access.</li>
+    <li><code>staff_adjust_credit_balance(...)</code> changes a credit balance only for staff, checks the limit/balance, and writes a ledger entry.</li>
+  </ul>
+  <p>RLS is enabled in the base schema. Catalogue data is readable publicly where allowed; customers generally access their own records; staff policies use <code>is_staff()</code> to allow staff/owner access. Private invoice and request files use separate buckets and Storage policies.</p>
+  <div class="callout warn"><strong>Owner setup:</strong> After registering and confirming the account, an authorized project owner must promote the first staff account using the profile update instruction in the SQL comments. Protect this access carefully; never promote an account based only on an unverified email supplied by a user.</div>
+</section>
+
+<section class="section">
+  <h2>5. Initial setup and SQL installation</h2>
+  <h3>For a brand-new Supabase project</h3>
+  <ol>
+    <li>Create a Supabase project and keep its database password private.</li>
+    <li>In Supabase, open <strong>SQL Editor</strong> and run <code>supabase-schema.txt</code> once to create the base tables, policies, functions, image bucket, and sample catalogue.</li>
+    <li>Run <code>supabase-fixes.sql</code> to apply the additive profile/product/chat and checkout updates.</li>
+    <li>Run <code>supabase-remaining-features.sql</code> to add credit ledger, private invoice/request uploads, quote conversion, and related policies/functions.</li>
+    <li>Review the SQL Editor results for errors before proceeding. Verify that the expected tables, functions, and Storage buckets exist.</li>
+    <li>Set the site's Supabase URL and publishable/anon key in the browser configuration or deployment environment.</li>
+    <li>Register a customer account, confirm email if confirmation is enabled, and promote the intended first owner using a trusted admin-controlled SQL session.</li>
+    <li>Sign in as that owner and verify the staff area. Test as a separate customer account as well.</li>
+  </ol>
+  <h3>For an existing project</h3>
+  <p>Do not rerun the fresh-install base schema over populated production data. Back up the database, inspect the current schema, then apply only the missing migrations in order: <code>supabase-fixes.sql</code>, followed by <code>supabase-remaining-features.sql</code>. Confirm that the starting schema is compatible and review each migration result.</p>
+  <div class="callout"><strong>SQL source of truth:</strong> The repository's three SQL files are separate steps, not interchangeable alternatives. The base schema contains sample records and initial policies. Never run SQL copied from an outdated handover document instead of checking the current files.</div>
+  <h3>Authentication settings</h3>
+  <p>In Supabase Auth, configure the site URL and allowed redirect URLs for the exact local and production origins you use. Decide whether email confirmation is required, configure SMTP for real customer mail, and test password recovery/confirmation flows. Do not assume a redirect works until tested on the published hostname.</p>
+</section>
+
+<section class="section">
+  <h2>6. Configuration and deployment</h2>
+  <h3>Local/browser configuration</h3>
+  <p>The current <code>config.js</code> defines <code>SUPABASE_URL</code>, <code>SUPABASE_ANON_KEY</code>, and an intentionally empty <code>N8N_INVOICE_WEBHOOK_URL</code>. Use the project's Supabase publishable (or legacy anon) key only. Keep the Supabase service-role key and all server credentials out of the repository and browser.</p>
+  <h3>Netlify</h3>
+  <p><code>netlify.toml</code> runs <code>node inject-env.js</code> and publishes the repository root. Add the expected Supabase URL and public-key environment variables in the Netlify site settings. The current injection script writes Supabase public config but does not preserve or inject the n8n webhook URL. A build may replace a manually edited config file; verify the generated deployment config before testing. For production invoice automation, prefer a secured server-side relay instead of exposing an n8n endpoint in frontend code.</p>
+  <h3>GitHub Pages or another static host</h3>
+  <p>The pages are root-level static files and do not require a frontend bundle. Configure the public Supabase values in <code>config.js</code>, publish the correct root folder, and test all relative links at the actual repository subpath/hostname. Static hosting does not make browser configuration private. The included <code>GITHUB_PAGES.txt</code> and <code>HANDOVER_PROMPT.txt</code> describe an older layout in places; use the current repository file list and scripts as the source of truth.</p>
+</section>
+
+<section class="section">
+  <h2>7. Routine operation and testing</h2>
+  <h3>Recommended test sequence</h3>
+  <ol>
+    <li>Open the deployed store over HTTPS and confirm that the catalogue loads from Supabase without console/network errors.</li>
+    <li>Register a new retail customer and a business customer; verify profile creation and email-confirmation behavior.</li>
+    <li>As a normal customer, verify that staff pages redirect or deny access and that customer records are private to their owner.</li>
+    <li>As staff, update a product, price, stock, and delivery-zone setting; verify the storefront reflects the changes.</li>
+    <li>Place a low-value test order. Confirm that the stored order total is calculated from database prices, stock decrements once, and the customer can see only their own order.</li>
+    <li>Test a quote request, staff quote, customer acceptance/conversion, and the resulting order link.</li>
+    <li>Test a credit-account adjustment and verify the limit rules and ledger record. Use test accounts only.</li>
+    <li>Upload a non-sensitive test invoice and verify private access, queued status, and clean removal/retention behavior.</li>
+    <li>Review Supabase logs, RLS policies, Auth redirect settings, Storage policies, and production error handling before launch.</li>
+  </ol>
+  <h3>Useful checks before pushing</h3>
+  <ul>
+    <li>Review <code>git status</code> and the complete diff; avoid committing local credentials or generated private data.</li>
+    <li>Run <code>git diff --check</code> and a link/reference check for the static HTML pages.</li>
+    <li>Open key mobile and desktop pages in a browser and test sign-in, checkout, admin navigation, and form error states.</li>
+    <li>Run migrations against a disposable/staging Supabase project first. The current code repository does not include an automated migration/test harness.</li>
+  </ul>
+</section>
+
+<section class="section">
+  <h2>8. Current limitations and launch checklist</h2>
+  <table>
+    <tr><th>Capability</th><th>Current status</th><th>Before production</th></tr>
+    <tr><td>Supabase SQL</td><td>SQL scripts are present; execution on the user's Supabase instance has not been verified by this documentation task.</td><td>Run the appropriate migration sequence in staging, review errors, back up, then apply to production.</td></tr>
+    <tr><td>Online payments</td><td>Payment method is recorded; no gateway charge/confirmation flow is established in the inspected checkout.</td><td>Integrate a payment provider with server-side verification and idempotent order/payment state updates.</td></tr>
+    <tr><td>n8n</td><td>Invoice UI and outgoing webhook contract exist; URL is blank and no workflow is created.</td><td>Build/test the workflow and secure the public-to-private boundary before processing real invoices.</td></tr>
+    <tr><td>Email, redirects</td><td>Dependent on Supabase Auth and hosting configuration.</td><td>Configure a production mail provider, URLs, and end-to-end account recovery/confirmation tests.</td></tr>
+    <tr><td>Deployment config</td><td>Netlify environment injection is present; older handover/deployment notes may be stale.</td><td>Test the exact build and published environment, including generated <code>config.js</code>.</td></tr>
+  </table>
+  <h3>Go-live checklist</h3>
+  <ul>
+    <li><span class="tag">Database</span> Migrations applied, policies reviewed, owner role assigned securely, backup/restore plan tested.</li>
+    <li><span class="tag">Security</span> No service-role key in the browser or repository; RLS and Storage access tested with customer and staff accounts.</li>
+    <li><span class="tag">Commerce</span> Real prices, inventory, zones, and order notifications confirmed; payment methods accurately explained to customers.</li>
+    <li><span class="tag">Automation</span> n8n workflow tested using synthetic invoices; no production webhook secret exposed in frontend files.</li>
+    <li><span class="tag">Operations</span> Production hostname, HTTPS, Auth redirects, email delivery, support contact, and recovery procedures checked.</li>
+  </ul>
+  <p class="small">This handbook is an implementation guide, not a penetration test, financial audit, or guarantee that external services are configured. Recheck the live project before accepting real customer data or payments.</p>
+</section>
+</body>
+</html>
